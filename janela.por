@@ -8,6 +8,8 @@ programa
 	inclua biblioteca Mouse --> mouse
 	inclua biblioteca Objetos --> obj
 
+	inteiro ID_SESSAO = 0
+
 	// Tipos de relatos
 	const inteiro RELATO_NORMAL = 0
 	const inteiro RELATO_ERRO = 1
@@ -40,7 +42,6 @@ programa
 	const inteiro MAXIMO_DE_FILHOS = 200
 
 	inteiro quantidade_objetos = 0
-	inteiro quantidade_imagens = 0
 	inteiro quantidade_filhos[MAXIMO_DE_PAIS]
 	
 	inteiro objetos[MAXIMO_DE_ELEMENTOS]
@@ -49,7 +50,11 @@ programa
 	inteiro clickaveis[MAXIMO_DE_ELEMENTOS]
 	inteiro moviveis[MAXIMO_DE_ELEMENTOS]
 	inteiro objetos_processados[MAXIMO_DE_ELEMENTOS]
+
+	// Buffer de imagens, elas têm de ser desenhadas no final!
+	inteiro quantidade_imagens = 0
 	inteiro imagens[MAXIMO_DE_ELEMENTOS]
+	//inteiro objetos_imagens[JANELA_LARGURA_MAXIMA * JANELA_ALTURA_MAXIMA]
 
 	// Tipos de componentes da interface
 	const inteiro TIPOS_RETANGULO = 0
@@ -57,11 +62,7 @@ programa
 	const inteiro TIPOS_BOTAO = 2
 
 	const cadeia TIPOS[] = {"RETANGULO", "CAIXA_TEXTO", "BOTAO"}
-	const cadeia TIPOS_PROPRIEDADES[][] = {
-		{"x","y","w","h","cameraX","cameraY","visivel","foco","tipo","pai","opacidade","rotacao","cor", "preencher", "arredondado"},
-		{"x","y","w","h","cameraX","cameraY","visivel","foco","tipo","pai","opacidade","rotacao","cor", "text","italico","negrito","sublinhado","fonte","tamanho_fonte"},
-		{"x","y","w","h","cameraX","cameraY","visivel","foco","tipo","pai","opacidade","rotacao","cor", "preencher", "arredondado", "id"}
-	}
+	
 	const inteiro TIPOS_TAMANHOS[] = {15, 19, 16}
 
 	// Tipos de colisões possíveis
@@ -120,6 +121,7 @@ programa
 	real salvo_tamanho_fonte = PADROES_TAMANHO_FONTE
 	
 	// Variáveis de gráfico
+	logico houveramMudancas = falso
 	inteiro opacidade = PADROES_OPACIDADE
 	funcao definir_opacidade(inteiro o) {
 		opacidade = o
@@ -243,9 +245,20 @@ programa
 
 	funcao logico checar_objeto_fraco(inteiro objeto) {
 		se (objeto <= 0 ou objeto >= MAXIMO_DE_ELEMENTOS) {
+			relatar(RELATO_ERRO, "Tentativa de usar objeto inválido " + objeto)
 			retorne falso
 		}
 		retorne verdadeiro
+	}
+
+	funcao notificarMudancas() {
+		houveramMudancas = verdadeiro
+	}
+
+	funcao inserir_objeto(inteiro objeto) {
+		objetos[quantidade_objetos] = objeto
+		quantidade_objetos += 1
+		notificarMudancas()
 	}
 	
 	funcao mudar_objeto_tipo(inteiro objeto, inteiro tipo) {
@@ -269,8 +282,14 @@ programa
 		}
 		obj.atribuir_propriedade(objeto, "x", 0)
 		obj.atribuir_propriedade(objeto, "y", 0)
+		obj.atribuir_propriedade(objeto, "xabsoluto", 0)
+		obj.atribuir_propriedade(objeto, "yabsoluto", 0)
+		obj.atribuir_propriedade(objeto, "xrelativo", 0.0)
+		obj.atribuir_propriedade(objeto, "yrelativo", 0.0)
 		obj.atribuir_propriedade(objeto, "w", 0)
 		obj.atribuir_propriedade(objeto, "h", 0)
+		obj.atribuir_propriedade(objeto, "wrelativo", 0.0)
+		obj.atribuir_propriedade(objeto, "hrelativo", 0.0)
 		obj.atribuir_propriedade(objeto, "cameraX", 0)
 		obj.atribuir_propriedade(objeto, "cameraY", 0)
 		obj.atribuir_propriedade(objeto, "visivel", verdadeiro)
@@ -303,7 +322,7 @@ programa
 		obj.atribuir_propriedade(objeto, "sublinhado", ATUAL_SUBLINHADO)
 		obj.atribuir_propriedade(objeto, "fonte", ATUAL_FONTE)
 		obj.atribuir_propriedade(objeto, "tamanho_fonte", ATUAL_TAMANHO_FONTE)
-		obj.atribuir_propriedade(objeto, "cor", g.COR_PRETO)
+		obj.atribuir_propriedade(objeto, "cor", g.COR_AZUL)
 		real tamanho_font = tamanho_fonte // Temporariamente mudamos o tamanho da fonte para poder calcular o tamanho correto
 		definir_tamanho_fonte(ATUAL_TAMANHO_FONTE)
 		obj.atribuir_propriedade(objeto, "h", g.altura_texto(texto))
@@ -321,7 +340,19 @@ programa
 		retorne botao
 	}
 	
-	
+	funcao inteiro criar_objeto_imagem(inteiro imagem, inteiro x, inteiro y) {
+		inteiro endereco = obj.criar_objeto()
+		obj.atribuir_propriedade(endereco, "imagem", imagem)
+		obj.atribuir_propriedade(endereco, "x", x)
+		obj.atribuir_propriedade(endereco, "y", y)
+		retorne endereco
+	}
+
+	funcao inserir_imagem_buffer(inteiro endereco, inteiro x, inteiro y) {
+		inteiro objeto = criar_objeto_imagem(endereco, x, y)
+		imagens[quantidade_imagens] = objeto
+		quantidade_imagens += 1
+	}
 
 	funcao inteiro nth_filho_tipo(inteiro n, inteiro tipo, inteiro objeto) {
 		se (n >= MAXIMO_DE_FILHOS ou objeto >= MAXIMO_DE_PAIS) {
@@ -379,18 +410,19 @@ programa
 	}
 	
 	// Renderiza um objeto num buffer para que esse buffer nos ajude com desenhos parciais, depois renderiza para a tela
-	funcao renderizar_objeto(inteiro objeto, inteiro x, inteiro y, inteiro h, inteiro w, inteiro canvas_h, inteiro canvas_w) {
+	funcao renderizar_objeto(inteiro objeto, inteiro xabsoluto, inteiro yabsoluto, inteiro cx, inteiro cy, inteiro h, inteiro w, inteiro canvas_h, inteiro canvas_w) {
+		se (canvas_h <= 0 ou canvas_w <= 0) {
+			relatar(RELATO_ERRO, "Canvas de desenho para o objeto " + objeto + " com dimensões inválidas.")
+			retorne
+		}
 		relatar(RELATO_VERBOSE, "Tentando renderizar objeto " + objeto + " num canvas de largura " + canvas_w + " e altura " + canvas_h)
 		inteiro tipo = obj.obter_propriedade_tipo_inteiro(objeto, "tipo")
 		inteiro rotaca = obj.obter_propriedade_tipo_inteiro(objeto, "rotacao")
 		inteiro co = obj.obter_propriedade_tipo_inteiro(objeto, "cor")
 		definir_rotacao(rotaca)
 		definir_cor(co)
-		renderizar_tipo(tipo, objeto, 0, 0, h, w)
-		inteiro imagem = g.renderizar_imagem(canvas_w, canvas_h)
-		g.desenhar_imagem(x, y, imagem) // talvez errado
-		g.renderizar()
-		g.liberar_imagem(imagem)
+		renderizar_tipo(tipo, objeto, -cx, -cy, h, w) // x e y têm de levar em consideração o x e y da camera
+		inserir_imagem_buffer(g.renderizar_imagem(canvas_w, canvas_h), xabsoluto, yabsoluto)
 	}
 
 	funcao renderizar_filhos(inteiro objeto) {
@@ -414,6 +446,8 @@ programa
 		inteiro opacidad = obj.obter_propriedade_tipo_inteiro(objeto, "opacidade")
 		inteiro rotaca = obj.obter_propriedade_tipo_inteiro(objeto, "rotacao")
 		inteiro co = obj.obter_propriedade_tipo_inteiro(objeto, "cor")
+		inteiro xabsolut = obj.obter_propriedade_tipo_inteiro(objeto, "xabsoluto")
+		inteiro yabsolut = obj.obter_propriedade_tipo_inteiro(objeto, "yabsoluto")
 		string += "\tTipo: " + TIPOS[tipo] + "\n"
 		string += "\tX: " + x + "\n"
 		string += "\tY: " + y + "\n"
@@ -423,6 +457,8 @@ programa
 		string += "\tOpacidade: " + opacidade + "\n"
 		string += "\tRotacao: " + rotacao + "\n"
 		string += "\tCor: " + cor + "\n"
+		string += "\tX absoluto: " + xabsolut + "\n"
+		string += "\tY absoluto: " + yabsolut + "\n"
 		string += + "\n}"
 		retorne string
 	}
@@ -439,22 +475,48 @@ programa
 		}
 		inteiro x = obj.obter_propriedade_tipo_inteiro(objeto, "x")
 		inteiro y = obj.obter_propriedade_tipo_inteiro(objeto, "y")
+		real xrelativo = obj.obter_propriedade_tipo_real(objeto, "xrelativo")
+		real yrelativo = obj.obter_propriedade_tipo_real(objeto, "yrelativo")
+		real wrelativo = obj.obter_propriedade_tipo_real(objeto, "wrelativo")
+		real hrelativo = obj.obter_propriedade_tipo_real(objeto, "hrelativo")
 		inteiro h = obj.obter_propriedade_tipo_inteiro(objeto, "h")
 		inteiro w = obj.obter_propriedade_tipo_inteiro(objeto, "w")
+		inteiro pai_x = 0
+		inteiro pai_y = 0
 		inteiro pai_cx = 0 
 		inteiro pai_cy = 0
 		inteiro pai_h = janela_altura
 		inteiro pai_w = janela_largura
+		inteiro pai_xabsoluto = 0
+		inteiro pai_yabsoluto = 0
 		inteiro canvas_w = w
 		inteiro canvas_h = h
 		inteiro endereco_pai = receber_pai(objeto)
-		se (endereco_pai != 0) { // 0 indica que não existe um objeto
+		se (checar_objeto_fraco(endereco_pai)) { // 0 indica que não existe um objeto
+			pai_x = obj.obter_propriedade_tipo_inteiro(endereco_pai, "x")
+			pai_y = obj.obter_propriedade_tipo_inteiro(endereco_pai, "y")
 			pai_cx = obj.obter_propriedade_tipo_inteiro(endereco_pai, "cameraX")
 			pai_cy = obj.obter_propriedade_tipo_inteiro(endereco_pai, "cameraY")
 			pai_h = obj.obter_propriedade_tipo_inteiro(endereco_pai, "h")
 			pai_w = obj.obter_propriedade_tipo_inteiro(endereco_pai, "w")
+			pai_xabsoluto = obj.obter_propriedade_tipo_inteiro(endereco_pai, "xabsoluto")
+			pai_yabsoluto = obj.obter_propriedade_tipo_inteiro(endereco_pai, "yabsoluto")
 		}
-		relatar(RELATO_VERBOSE, "h " + pai_h + " w " + pai_w)
+		inteiro xabsolut = pai_xabsoluto + x
+		inteiro yabsolut = pai_yabsoluto + y
+		se (xrelativo > 0 e xrelativo <= 1) {
+			xabsolut = pai_xabsoluto + pai_w * xrelativo
+		} senao {
+			relatar(RELATO_ERRO, "Valor para x relativo inválido, somente o intervalo 0 < x <= 1 é considerado válido")
+		}
+		se (yrelativo > 0 e yrelativo <= 1) {
+			yabsolut = pai_yabsoluto + pai_h * yrelativo
+		} senao {
+			relatar(RELATO_ERRO, "Valor para y relativo inválido, somente o intervalo 0 < y <= 1 é considerado válido")
+		}
+		obj.atribuir_propriedade(objeto, "xabsoluto", xabsolut)
+		obj.atribuir_propriedade(objeto, "yabsoluto", yabsolut)
+		relatar(RELATO_VERBOSE, "h " + pai_h + " w " + pai_w + " xabs " + xabsolut + " yabs "  + yabsolut)
 		inteiro relacao_posicao = colisao_quadrado_quadrado(pai_cx, pai_cy, pai_h, pai_w, x, y, h, w)
 		logico continuar = verdadeiro
 		escolha(relacao_posicao) {
@@ -466,19 +528,25 @@ programa
 			caso COLISAO_DENTRO_FORA: // recalculamos nosso tamanho para ficarmos dentro do pai
 				canvas_w = pai_cx + pai_w - x
 				canvas_h = pai_cy + pai_h - y
+				se (canvas_w <= 0 ou canvas_h <= 0) {
+					 continuar = falso
+				}
 				pare
 			caso COLISAO_FORA_DENTRO: // Por enquanto não lidamos com essa situação
 				canvas_w = w - x + pai_cx
 				canvas_h = h - y + pai_cy
+				se (canvas_w <= 0 ou canvas_h <= 0) {
+					 continuar = falso
+				}
 				pare
 			caso contrario:
 				relatar(RELATO_ERRO, "Ocorreu uma colisão impossível!")
 				pare
 		}
 		se (continuar) {
-			relatar(RELATO_VERBOSE, "Objeto será renderizado em x: " + x + " y: " + y)
+			relatar(RELATO_VERBOSE, "Objeto será renderizado em x: " + xabsolut + " y: " + yabsolut)
 			definir_opacidade(opacidade)
-			renderizar_objeto(objeto, x, y, h, w, canvas_h, canvas_w)
+			renderizar_objeto(objeto, xabsolut, yabsolut, pai_cx, pai_cy, h, w, canvas_h, canvas_w)
 			restaurar_configuracoes_graficas() // será que isso é realmente necessário?
 			renderizar_filhos(objeto)
 		} senao {
@@ -488,18 +556,35 @@ programa
 
 	funcao renderizar() {
 		salvar_configuracoes_graficas()
+		pre_renderizar()
 		para (inteiro i = 0; i < quantidade_objetos; i++) {
 			inteiro objeto = objetos[i]
 			se (checar_objeto_fraco(objeto)) {
 				pre_renderizar_objeto(objeto)
 			}
 		}
+		pos_renderizar()
+		renderizar_final()
+	}
+
+	funcao renderizar_final() {
+		para(inteiro i = 0; i < quantidade_imagens; i ++) {
+			inteiro objeto_imagem = imagens[i]
+			se (nao (objeto_imagem <= 0)) {
+				inteiro imagem = obj.obter_propriedade_tipo_inteiro(objeto_imagem, "imagem")
+				inteiro x = obj.obter_propriedade_tipo_inteiro(objeto_imagem, "x")
+				inteiro y = obj.obter_propriedade_tipo_inteiro(objeto_imagem, "y")
+				relatar(RELATO_VERBOSE, "Desenhando imagem " + imagem + " em x " + x + " em y " + y)
+				g.desenhar_imagem(x, y, imagem)
+				g.liberar_imagem(imagem)
+				imagens[i] = 0
+			}
+		}
+		quantidade_imagens = 0
+		g.renderizar()
 	}
 
 	funcao pre_renderizar() {
-		para(inteiro i = 0; i < quantidade_imagens; i++) {
-			g.liberar_imagem(imagens[i])
-		}
 	}
 
 	funcao pos_renderizar() {
@@ -531,17 +616,183 @@ programa
 		mouseM_pressionado = mouse.botao_pressionado(mouse.BOTAO_MEIO)
 		mouseD_pressionado = mouse.botao_pressionado(mouse.BOTAO_DIREITO)
 	}
+
+	funcao definir_padroes() {
+		definir_opacidade(ATUAL_OPACIDADE)
+		definir_rotacao(ATUAL_ROTACAO)
+		definir_cor(ATUAL_COR)
+		definir_estilo(ATUAL_ITALICO, ATUAL_NEGRITO, ATUAL_SUBLINHADO)
+		definir_fonte(ATUAL_FONTE)
+		definir_tamanho_fonte(ATUAL_TAMANHO_FONTE)
+	}
+	// Validações de propriedades
+	const inteiro VALIDACAO_PORCENTAGEM_DECIMAL = 0
+	const inteiro VALIDACAO_PORCENTAGEM_PORCENTO = 1
+	const inteiro VALIDACAO_PORCENTAGEM_INVALIDO = 2
+	funcao inteiro validar_porcentagem_limite(real valor, real limite) {
+		se (valor >= 0 e valor <= limite) {
+			retorne VALIDACAO_PORCENTAGEM_DECIMAL
+		} senao se (valor >= 0 e valor <= limite * 100) {
+			retorne VALIDACAO_PORCENTAGEM_PORCENTO
+		}
+		retorne VALIDACAO_PORCENTAGEM_INVALIDO
+	}
 	
+	// Usar sempre essas funções quando for manipular objetos
+	funcao atribuir_propriedade_inteiro(inteiro objeto, cadeia p, inteiro i) {
+		obj.atribuir_propriedade(objeto, p, i)
+		notificarMudancas()
+	}
+	funcao atribuir_propriedade_real(inteiro objeto, cadeia p, real r) {
+		obj.atribuir_propriedade(objeto, p, r)
+		notificarMudancas()
+	}
+	funcao atribuir_propriedade_cadeia(inteiro objeto, cadeia p, cadeia c) {
+		obj.atribuir_propriedade(objeto, p, c)
+		notificarMudancas()
+	}
+	funcao atribuir_propriedade_caracter(inteiro objeto,cadeia p,  caracter c) {
+		obj.atribuir_propriedade(objeto, p, c)
+		notificarMudancas()
+	}
+	funcao atribuir_propriedade_logico(inteiro objeto, cadeia p, logico l) {
+		obj.atribuir_propriedade(objeto, p, l)
+		notificarMudancas()
+	}
+	
+	funcao atribuir_x(inteiro objeto, inteiro x) {
+		se (checar_objeto_fraco(objeto)) {
+			atribuir_propriedade_inteiro(objeto, "x", x)
+		}
+	}
+
+	funcao atribuir_y(inteiro objeto, inteiro y) {
+		se (checar_objeto_fraco(objeto)) {
+			atribuir_propriedade_inteiro(objeto, "y", y)
+		}
+	}
+
+	funcao atribuir_xrelativo(inteiro objeto, real xrelativo) {
+		se (nao(xrelativo > 0 e xrelativo <= 1)) {
+			relatar(RELATO_ERRO, "Tentativa de colocar valor inválido para xrelativo " + xrelativo + " em " + objeto + ".\nSomente números dentro do intervalo 0 < n <= 1 são aceitos.")
+			retorne
+		}
+		se (checar_objeto_fraco(objeto)) {
+			atribuir_propriedade_real(objeto, "xrelativo", xrelativo)
+		}
+	}
+
+	funcao atribuir_yrelativo(inteiro objeto, real yrelativo) {
+				se (nao(yrelativo > 0 e yrelativo <= 1)) {
+			relatar(RELATO_ERRO, "Tentativa de colocar valor inválido para yrelativo " + yrelativo + " em " + objeto + ".\nSomente números dentro do intervalo 0 < n <= 1 são aceitos.")
+			retorne
+		}
+		se (checar_objeto_fraco(objeto)) {
+			atribuir_propriedade_real(objeto, "yrelativo", yrelativo)
+		}
+	}
+
+	
+	funcao atribuir_hrelativo(inteiro objeto, real hrelativo) {
+		se (nao(hrelativo > 0 e hrelativo <= 1)) {
+			relatar(RELATO_ERRO, "Tentativa de colocar valor inválido para hrelativo " + hrelativo + " em " + objeto + ".\nSomente números dentro do intervalo 0 < n <= 1 são aceitos.")
+			retorne
+		}
+		inteiro pai = receber_pai(objeto)
+		se (checar_objeto_fraco(pai)) {
+			inteiro pai_h = obj.obter_propriedade_tipo_inteiro(pai, "h")
+			atribuir_propriedade_real(objeto, "hrelativo", pai_h * hrelativo)
+		}
+	}
+
+	funcao atribuir_wrelativo(inteiro objeto, real wrelativo) {
+		se (nao(wrelativo > 0 e wrelativo <= 1)) {
+			relatar(RELATO_ERRO, "Tentativa de colocar valor inválido para wrelativo " + wrelativo + " em " + objeto + ".\nSomente números dentro do intervalo 0 < n <= 1 são aceitos.")
+			retorne
+		}
+		inteiro pai = receber_pai(objeto)
+		se (checar_objeto_fraco(pai)) {
+			inteiro pai_w = obj.obter_propriedade_tipo_inteiro(pai, "w")
+			atribuir_w(objeto, pai_w * wrelativo)
+		}
+	}
+
+	funcao atribuir_w(inteiro objeto, inteiro w) {
+		se (checar_objeto_fraco(objeto)) {
+			atribuir_propriedade_inteiro(objeto, "w", w)
+		}
+	}
+
+	funcao atribuir_h(inteiro objeto, inteiro h) {
+		se (checar_objeto_fraco(objeto)) {
+			atribuir_propriedade_inteiro(objeto, "h", h)
+		}
+	}
+
+	funcao atribuir_cameraX(inteiro objeto, inteiro cameraX) {
+		se (checar_objeto_fraco(objeto)) {
+			atribuir_propriedade_inteiro(objeto, "cameraX", cameraX)
+		}
+	}
+
+	funcao atribuir_cameraY(inteiro objeto, inteiro cameraY) {
+		se (checar_objeto_fraco(objeto)) {
+			atribuir_propriedade_inteiro(objeto, "cameraY", cameraY)
+		}
+	}
+	
+	funcao atribuir_visivel(inteiro objeto, logico visivel) {
+		se (checar_objeto_fraco(objeto)) {
+			atribuir_propriedade_logico(objeto, "visivel", visivel)
+		}
+	}
+
+	funcao atribuir_foco(inteiro objeto, logico foco) {
+		se (checar_objeto_fraco(objeto)) {
+			atribuir_propriedade_logico(objeto, "foco", foco)
+		}
+	}
+
+	funcao atribuir_opacidade(inteiro objeto, inteiro o) {
+		se (checar_objeto_fraco(objeto)) {
+			atribuir_propriedade_inteiro(objeto, "opacidade", o)
+		}
+	}
+
+	funcao atribuir_rotacao(inteiro objeto, inteiro r) {
+		se (checar_objeto_fraco(objeto)) {
+			atribuir_propriedade_inteiro(objeto, "rotacao", r)
+		}
+	}
+
+	funcao atribuir_cor(inteiro objeto, inteiro c) {
+		se (checar_objeto_fraco(objeto)) {
+			atribuir_propriedade_inteiro(objeto, "cor", c)
+		}
+	}
+	
+
 	funcao inicio()
  	{
+ 		ID_SESSAO = util.sorteia(0, 1000000)
 		inicializar_graficos()
-		inicializar_objetos()
-		inteiro botao = criar_retangulo(100, 1000, 100, 100)
-		objetos[0] = botao
-		quantidade_objetos = 1
-		renderizar()
+		inicializar_objetos() // Se remover essa linha, é problema.
+		definir_padroes()
+		definir_fonte("Roboto")
+		inteiro container = criar_retangulo(0, 0, 100, 100)
+		atribuir_wrelativo(container, 1.0)
+		atribuir_hrelativo(container, 1.0)
+		inteiro botao = criar_caixa_texto("Teste")
+		atribuir_yrelativo(botao, 0.49)
+		atribuir_xrelativo(botao, 0.49)
+		adotar(container, botao)
+		inserir_objeto(container)
 		enquanto (nao kb.tecla_pressionada(kb.TECLA_ESC))
 		{
+			se(houveramMudancas) {
+				renderizar()
+				houveramMudancas = falso
+			}
 			atualizar_mouse()
 			
 		}
@@ -555,9 +806,9 @@ programa
  * Esta seção do arquivo guarda informações do Portugol Studio.
  * Você pode apagá-la se estiver utilizando outro editor.
  * 
- * @POSICAO-CURSOR = 19475; 
+ * @POSICAO-CURSOR = 27918; 
  * @PONTOS-DE-PARADA = ;
- * @SIMBOLOS-INSPECIONADOS = ;
+ * @SIMBOLOS-INSPECIONADOS = {h, 224, 68, 1}-{w, 224, 79, 1};
  * @FILTRO-ARVORE-TIPOS-DE-DADO = inteiro, real, logico, cadeia, caracter, vazio;
  * @FILTRO-ARVORE-TIPOS-DE-SIMBOLO = variavel, vetor, matriz;
  */
