@@ -274,7 +274,7 @@ programa
 
 
 	funcao renderizar_retangulo(inteiro objeto, inteiro x, inteiro y, inteiro h, inteiro w) {
-		
+		// CONTINUAR AQUI
 	}
 
 	funcao renderizar_caixa_texto(inteiro objeto, inteiro x, inteiro y, inteiro h, inteiro w) {
@@ -305,6 +305,7 @@ programa
 	}
 		// Renderiza um objeto num buffer para que esse buffer nos ajude com desenhos parciais, depois renderiza para a tela
 	funcao renderizar_objeto(inteiro objeto, inteiro x, inteiro y, inteiro h, inteiro w, inteiro canvas_h, inteiro canvas_w) {
+		// TODO: SETTAR AS DEFINIÇÕES DE GRÁFICO GENÈRICOS
 		inteiro tipo = obj.obter_propriedade_tipo_inteiro(objeto, "tipo")
 		inteiro opacidade = obj.atribuir_propriedade(objeto, "opacidade", ATUAL_OPACIDADE)
 		inteiro rotacao = obj.atribuir_propriedade(objeto, "rotacao", ATUAL_ROTACAO)
@@ -357,6 +358,7 @@ programa
 			relatar(RELATO_ERRO, "Ocorreu uma colisão impossível!")
 			pare
 		}
+		g.definir_opacidade(opacidade)
 		renderizar_objeto(objeto, x, y, h, w, canvas_h, canvas_w)
 	}
 
@@ -422,7 +424,7 @@ programa
  * Esta seção do arquivo guarda informações do Portugol Studio.
  * Você pode apagá-la se estiver utilizando outro editor.
  * 
- * @POSICAO-CURSOR = 13476; 
+ * @POSICAO-CURSOR = 13626; 
  * @PONTOS-DE-PARADA = ;
  * @SIMBOLOS-INSPECIONADOS = ;
  * @FILTRO-ARVORE-TIPOS-DE-DADO = inteiro, real, logico, cadeia, caracter, vazio;
