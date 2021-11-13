@@ -11,16 +11,29 @@ programa
 	//CORES
 
 
-	// Tipos de relatos
+	// DEBUGGING
 	const inteiro RELATO_NORMAL = 0
-	const inteiro RELATO_ERRO = 1
-	const inteiro RELATO_AVISO = 2
+	const inteiro RELATO_AVISO = 1
+	const inteiro RELATO_ERRO = 2
 	const inteiro RELATO_DEBUG = 3
 	const inteiro RELATO_VERBOSE = 4
 
-	inteiro NIVEL_RELATO = 4
+	inteiro NIVEL_RELATO = RELATO_AVISO
 
-	cadeia RELATOS_DISPLAY[] = {"NORMAL", "ERRO", "AVISO", "DEBUG", "VERBOSE"}
+	cadeia RELATOS_DISPLAY[] = {"NORMAL",  "AVISO", "ERRO", "DEBUG", "VERBOSE"}
+
+
+	inteiro tempo_antes = 0
+	inteiro tempo_delta = 0
+	inteiro tempo_frame = 0
+	inteiro quadros = 0
+	real qps = 0.0
+	inteiro qps_duracao = segundos(1)
+	inteiro qps_inicio = 0
+	const inteiro qps_maximo = 300
+	inteiro qps_limite = -1
+	
+	logico depuracao = verdadeiro
 
 	// Utilidades
 	funcao relatar(inteiro tipo, cadeia relato) {
@@ -44,6 +57,54 @@ programa
 			retorne minimo
 		}
 		retorne maximo
+	}
+
+
+	//TEMPO
+	const inteiro ms_por_segundo = 1000
+	const inteiro segundos_por_min = 60
+	const inteiro min_por_hora = 60
+	const inteiro horas_por_dia = 24
+	const inteiro dias_por_ano = 365
+	
+	funcao inteiro segundos(inteiro s) {
+		retorne s * ms_por_segundo
+	}
+
+	funcao inteiro minutos(inteiro m) {
+		retorne segundos(m * segundos_por_min)
+	}
+
+	funcao inteiro horas(inteiro h) {
+		retorne minutos(h * min_por_hora)
+	}
+
+	funcao inteiro dias(inteiro d) {
+		retorne horas(d * horas_por_dia)
+	}
+
+	funcao inteiro anos(inteiro a) {
+		retorne dias(a * dias_por_ano)
+	}
+
+	funcao real ms_em_segundos(inteiro ms) {
+		retorne ms / ms_por_segundo
+	}
+
+	funcao real ms_em_minutos(inteiro ms) {
+		retorne ms_em_segundos(ms)/segundos_por_min
+	}
+
+	funcao real ms_em_horas(inteiro ms) {
+		retorne ms_em_minutos(ms)/min_por_hora
+	}
+
+	funcao real ms_em_dias(inteiro ms) {
+		retorne ms_em_horas(ms)/horas_por_dia
+	}
+	
+	funcao inteiro ms_em_anos(inteiro ms) {
+		retorne ms_em_dias(ms)/dias_por_ano
 	}
 	
 	const inteiro MAXIMO_DE_ELEMENTOS = 5000
@@ -112,6 +173,12 @@ programa
 	const inteiro PADROES_COR = -1
 	const inteiro PADROES_POSICIONAMENTO = 1
 	const inteiro PADROES_DIMENSIONAMENTO = 0
+	const inteiro PADROES_PAI = -1
+	const real PADROES_X = 0.0
+	const real PADROES_Y = 0.0
+	const real PADROES_H = 0.0
+	const real PADROES_W = 0.0
+	const logico PADROES_VISIVEL = verdadeiro
 	// Caixas de texto
 	const logico PADROES_ITALICO = falso
 	const logico PADROES_NEGRITO = falso
@@ -127,6 +194,12 @@ programa
 	inteiro ATUAL_COR = PADROES_COR
 	inteiro ATUAL_POSICIONAMENTO = PADROES_POSICIONAMENTO
 	inteiro ATUAL_DIMENSIONAMENTO = PADROES_DIMENSIONAMENTO
+	inteiro ATUAL_PAI = PADROES_PAI
+	real ATUAL_X = PADROES_X
+	real ATUAL_Y = PADROES_Y
+	real ATUAL_H = PADROES_H
+	real ATUAL_W = PADROES_W
+	logico ATUAL_VISIVEL = PADROES_VISIVEL
 	// Caixas de texto
 	logico ATUAL_ITALICO = PADROES_ITALICO
 	logico ATUAL_NEGRITO = PADROES_NEGRITO
@@ -145,16 +218,15 @@ programa
 	real salvo_tamanho_fonte = PADROES_TAMANHO_FONTE
 
 	//Tipos de posicionamento
-	const inteiro POSICAO_PX = 0
-	const inteiro POSICAO_RPAI = 1
-	const inteiro POSICAO_ABSOLUTO = 2
+	const inteiro POSICIONAMENTO_PX = 0
+	const inteiro POSICIONAMENTO_RPAI = 1
 
-	const cadeia POSICOES[] = {"PIXEL RELATIVA AO PAI", "PORCENTAGEM RELATIVA AO PAI", "ABSOLUTO"}
+	const cadeia POSICIONAMENTOS[] = {"PIXEL RELATIVA AO PAI", "PORCENTAGEM RELATIVA AO PAI"}
 	//Tipos de dimensionamento
 	const inteiro DIMENSIONAMENTO_PX = 0
 	const inteiro DIMENSIONAMENTO_RPAI = 1
 
-	const cadeia DIMESIONAMENTOS[] = {"PIXEL", "PORCENTAGEM RELATIVA AO PAI"}
+	const cadeia DIMENSIONAMENTOS[] = {"PIXEL", "PORCENTAGEM RELATIVA AO PAI"}
 	
 	// Variáveis de gráfico
 	logico houveramMudancas = falso
@@ -267,34 +339,48 @@ programa
 		logico ponto_direito_inferior_dentro = colisao_quadrado_ponto(x, y, h, w, x2 + w2, y2 + h2)
 		relatar(RELATO_VERBOSE, "Colisão 1 : " + ponto_esquerdo_superior_dentro + " Colisão 2 " + ponto_direito_inferior_dentro)
 		se (ponto_esquerdo_superior_dentro e ponto_direito_inferior_dentro) {
+			relatar(RELATO_VERBOSE, "Colisão do tipo " + COLISOES[COLISAO_DENTRO])
 			retorne COLISAO_DENTRO
 		} senao se (ponto_esquerdo_superior_dentro e nao ponto_direito_inferior_dentro) {
+			relatar(RELATO_VERBOSE, "Colisão do tipo " + COLISOES[COLISAO_DENTRO_FORA])
 			retorne COLISAO_DENTRO_FORA
 		} senao se (nao ponto_esquerdo_superior_dentro e ponto_direito_inferior_dentro) {
+			relatar(RELATO_VERBOSE, "Colisão do tipo " + COLISOES[COLISAO_FORA_DENTRO])
 			retorne COLISAO_FORA_DENTRO
 		} senao se (nao ponto_esquerdo_superior_dentro e nao ponto_direito_inferior_dentro) {
+			relatar(RELATO_VERBOSE, "Colisão do tipo " + COLISOES[COLISAO_FORA])
 			retorne COLISAO_FORA
 		}
 		retorne COLISAO_IMPOSSIVEL
 	}
 
+	funcao logico checar_objeto_mestre(inteiro objeto) {
+		retorne objeto == OBJETO_MESTRE
+	}
 
 	funcao logico checar_objeto_fraco(inteiro objeto) {
-		se (objeto >= MAXIMO_DE_ELEMENTOS) {
+		se (objeto < 0 ou objeto >= MAXIMO_DE_ELEMENTOS) {
 			relatar(RELATO_ERRO, "Tentativa de usar objeto inválido " + objeto)
 			retorne falso
 		}
 		retorne verdadeiro
 	}
 
-	funcao notificarMudancas() {
+	funcao logico checar_tipo_objeto(inteiro objeto, inteiro tipo) {
+		se (checar_objeto_fraco(objeto)) {
+			retorne obj.obter_propriedade_tipo_inteiro(objeto, "tipo") == tipo
+		}
+		retorne falso
+	}
+
+	funcao notificar_mudancas() {
 		houveramMudancas = verdadeiro
 	}
 
 	funcao inserir_objeto(inteiro objeto) {
 		adotar(OBJETO_MESTRE, objeto)
 		quantidade_objetos += 1
-		notificarMudancas()
+		notificar_mudancas()
 	}
 	
 	funcao mudar_objeto_tipo(inteiro objeto, inteiro tipo) {
@@ -316,25 +402,29 @@ programa
 			relatar(RELATO_ERRO, "Chegamos no limite de objetos, redirecionando para o objeto 0")
 			retorne 0
 		}
-		obj.atribuir_propriedade(objeto, "x", 0.0)
+		obj.atribuir_propriedade(objeto, "x", ATUAL_X)
 		obj.atribuir_propriedade(objeto, "modox", ATUAL_POSICIONAMENTO)
-		obj.atribuir_propriedade(objeto, "y", 0.0)
+		obj.atribuir_propriedade(objeto, "y", ATUAL_Y)
 		obj.atribuir_propriedade(objeto, "modoy", ATUAL_POSICIONAMENTO)
-		obj.atribuir_propriedade(objeto, "xabsoluto", 0)
-		obj.atribuir_propriedade(objeto, "yabsoluto", 0)
-		obj.atribuir_propriedade(objeto, "w", 0.0)
-		obj.atribuir_propriedade(objeto, "modow", POSICAO_PX)
-		obj.atribuir_propriedade(objeto, "h", 0.0)
-		obj.atribuir_propriedade(objeto, "modoh", POSICAO_PX)
+		obj.atribuir_propriedade(objeto, "w", ATUAL_W)
+		obj.atribuir_propriedade(objeto, "modow", ATUAL_DIMENSIONAMENTO)
+		obj.atribuir_propriedade(objeto, "h", ATUAL_H)
+		obj.atribuir_propriedade(objeto, "modoh", ATUAL_DIMENSIONAMENTO)
 		obj.atribuir_propriedade(objeto, "cameraX", 0.0)
 		obj.atribuir_propriedade(objeto, "cameraY", 0.0)
 		obj.atribuir_propriedade(objeto, "visivel", verdadeiro)
 		obj.atribuir_propriedade(objeto, "foco", falso)
 		obj.atribuir_propriedade(objeto, "tipo", tipo)
-		obj.atribuir_propriedade(objeto, "pai", 0)
+		obj.atribuir_propriedade(objeto, "pai", -1)
 		obj.atribuir_propriedade(objeto, "opacidade", ATUAL_OPACIDADE)
 		obj.atribuir_propriedade(objeto, "rotacao", ATUAL_ROTACAO)
 		obj.atribuir_propriedade(objeto, "cor", ATUAL_COR)
+		//variaveis do sistema de de estilização, não alterar manualmente esses valores pois são calculados
+		//automáticamente.
+		obj.atribuir_propriedade(objeto, "__x", 0)
+		obj.atribuir_propriedade(objeto, "__y", 0)
+		obj.atribuir_propriedade(objeto, "__h", 0)
+		obj.atribuir_propriedade(objeto, "__w", 0)
 		relatar(RELATO_VERBOSE, "Objeto base criado com id " + objeto + " do tipo " + TIPOS[tipo])
 		retorne objeto
 	}
@@ -413,14 +503,14 @@ programa
 	}
 
 
-	funcao renderizar_retangulo(inteiro objeto, real x, real y, real h, real w) {
+	funcao renderizar_retangulo(inteiro objeto, inteiro x, inteiro y, inteiro h, inteiro w) {
 		logico preencher = obj.obter_propriedade_tipo_logico(objeto, "preencher")
 		logico arredondado = obj.obter_propriedade_tipo_logico(objeto, "arredondado")
 		g.desenhar_retangulo(x, y, w, h, arredondado, preencher)
 		relatar(RELATO_VERBOSE, "Desenhando retângulo " + objeto_para_string(objeto) + "\npreencher " + preencher)
 	}
 
-	funcao renderizar_caixa_texto(inteiro objeto, real x, real y, real h, real w) {
+	funcao renderizar_caixa_texto(inteiro objeto, inteiro x, inteiro y, inteiro h, inteiro w) {
 		cadeia text = obj.obter_propriedade_tipo_cadeia(objeto, "text")
 		logico italic = obj.obter_propriedade_tipo_logico(objeto, "italico")
 		logico negrit = obj.obter_propriedade_tipo_logico(objeto, "negrito")
@@ -434,12 +524,12 @@ programa
 	}
 
 	
-	funcao renderizar_botao(inteiro objeto, real x, real y, real h, real w) {
+	funcao renderizar_botao(inteiro objeto, inteiro x, inteiro y, inteiro h, inteiro w) {
 		renderizar_retangulo(objeto, x, y, h, w)
 	}
 
 	// Manda o objeto para a função correta renderizar
-	funcao renderizar_tipo(inteiro tipo, inteiro objeto, real x, real y, real h, real w) {
+	funcao renderizar_tipo(inteiro tipo, inteiro objeto, inteiro x, inteiro y, inteiro h, inteiro w) {
 		escolha(tipo) {
 		caso TIPOS_RETANGULO:
 			renderizar_retangulo(objeto, x, y, h, w)
@@ -460,7 +550,7 @@ programa
 	}
 	
 	// Renderiza um objeto num buffer para que esse buffer nos ajude com desenhos parciais, depois renderiza para a tela
-	funcao renderizar_objeto(inteiro objeto, inteiro xabsoluto, inteiro yabsoluto, real cx, real cy, real h, real w, inteiro canvas_h, inteiro canvas_w) {
+	funcao renderizar_objeto(inteiro objeto, inteiro xabsoluto, inteiro yabsoluto, inteiro cx, inteiro cy, inteiro h, inteiro w, inteiro canvas_h, inteiro canvas_w) {
 		se (canvas_h <= 0 ou canvas_w <= 0) {
 			relatar(RELATO_ERRO, "Canvas de desenho para o objeto " + objeto + " com dimensões inválidas.")
 			retorne
@@ -496,8 +586,10 @@ programa
 		inteiro opacidad = obj.obter_propriedade_tipo_inteiro(objeto, "opacidade")
 		inteiro rotaca = obj.obter_propriedade_tipo_inteiro(objeto, "rotacao")
 		inteiro co = obj.obter_propriedade_tipo_inteiro(objeto, "cor")
-		inteiro xabsolut = obj.obter_propriedade_tipo_inteiro(objeto, "xabsoluto")
-		inteiro yabsolut = obj.obter_propriedade_tipo_inteiro(objeto, "yabsoluto")
+		inteiro __x = obj.obter_propriedade_tipo_inteiro(objeto, "__x")
+		inteiro __y = obj.obter_propriedade_tipo_inteiro(objeto, "__y")
+		inteiro __h = obj.obter_propriedade_tipo_inteiro(objeto, "__h")
+		inteiro __w = obj.obter_propriedade_tipo_inteiro(objeto, "__w")
 		string += "\tTipo: " + TIPOS[tipo] + "\n"
 		string += "\tX: " + x + "\n"
 		string += "\tY: " + y + "\n"
@@ -507,8 +599,10 @@ programa
 		string += "\tOpacidade: " + opacidade + "\n"
 		string += "\tRotacao: " + rotacao + "\n"
 		string += "\tCor: " + cor + "\n"
-		string += "\tX absoluto: " + xabsolut + "\n"
-		string += "\tY absoluto: " + yabsolut + "\n"
+		string += "\tX absoluto: " + __x + "\n"
+		string += "\tY absoluto: " + __x + "\n"
+		string += "\tH absoluto: " + __h + "\n"
+		string += "\tW absoluto: " + __w + "\n"
 		string += + "\n}"
 		retorne string
 	}
@@ -525,12 +619,16 @@ programa
 		retorne verdadeiro
 	}
 
-	// Recalcula posição ou tamanho do objeto a depender de sua relação com o objeto pai
-	// Acho que é melhor separar essa função em outras menores, antes que fique complexo de mais....
-	funcao pre_renderizar_objeto(inteiro objeto) {
-		se (nao teste_visibilidade(objeto)) {
-			retorne
+	funcao calcular_propriedades_tipo(inteiro objeto, inteiro tipo) {
+		escolha (tipo) {
+			caso TIPOS_CAIXA_TEXTO:
+				pare
+			caso contrario:
+				pare
 		}
+	}
+
+	funcao calcular_propriedades(inteiro objeto) {
 		real x = obj.obter_propriedade_tipo_real(objeto, "x")
 		real y = obj.obter_propriedade_tipo_real(objeto, "y")
 		real h = obj.obter_propriedade_tipo_real(objeto, "h")
@@ -539,90 +637,130 @@ programa
 		inteiro modo_y = obj.obter_propriedade_tipo_inteiro(objeto, "modoy")
 		inteiro modo_h = obj.obter_propriedade_tipo_inteiro(objeto, "modoh")
 		inteiro modo_w = obj.obter_propriedade_tipo_inteiro(objeto, "modow")
-		real pai_x = 0.0
-		real pai_y = 0.0
-		real pai_cx = 0.0
-		real pai_cy = 0.0
-		real pai_h = janela_altura
-		real pai_w = janela_largura
-		inteiro pai_xabsoluto = 0
-		inteiro pai_yabsoluto = 0
-		inteiro canvas_w = w
-		inteiro canvas_h = h
+		inteiro pai_x = 0
+		inteiro pai_y = 0
+		inteiro pai_h = 0
+		inteiro pai_w = 0
+		inteiro x_calculado = 0
+		inteiro y_calculado = 0
+		inteiro h_calculado = 0
+		inteiro w_calculado = 0
 		inteiro endereco_pai = receber_pai(objeto)
+		relatar(RELATO_VERBOSE, "Endereco pai " + endereco_pai)
 		se (checar_objeto_fraco(endereco_pai)) { // 0 indica que não existe um objeto
-			pai_x = obj.obter_propriedade_tipo_real(endereco_pai, "x")
-			pai_y = obj.obter_propriedade_tipo_real(endereco_pai, "y")
-			pai_cx = obj.obter_propriedade_tipo_real(endereco_pai, "cameraX")
-			pai_cy = obj.obter_propriedade_tipo_real(endereco_pai, "cameraY")
-			pai_h = obj.obter_propriedade_tipo_real(endereco_pai, "h")
-			pai_w = obj.obter_propriedade_tipo_real(endereco_pai, "w")
-			pai_xabsoluto = obj.obter_propriedade_tipo_inteiro(endereco_pai, "xabsoluto")
-			pai_yabsoluto = obj.obter_propriedade_tipo_inteiro(endereco_pai, "yabsoluto")
+			pai_x = obj.obter_propriedade_tipo_inteiro(endereco_pai, "__x")
+			pai_y = obj.obter_propriedade_tipo_inteiro(endereco_pai, "__y")
+			pai_h = obj.obter_propriedade_tipo_inteiro(endereco_pai, "__h")
+			pai_w = obj.obter_propriedade_tipo_inteiro(endereco_pai, "__w")
+			relatar(RELATO_VERBOSE, "Objeto " + objeto_para_string(endereco_pai))
 		}
-		relatar(RELATO_VERBOSE, "Posicionamento de " + objeto + " no modo " + POSICOES[modo_x])
-		relatar(RELATO_VERBOSE, "Posicionamento de " + objeto + " no modo " + POSICOES[modo_y])
-		relatar(RELATO_VERBOSE, "Posicionamento de " + objeto + " no modo " + POSICOES[modo_h])
-		relatar(RELATO_VERBOSE, "Posicionamento de " + objeto + " no modo " + POSICOES[modo_w])
-		inteiro xabsolut = pai_xabsoluto + x
-		inteiro yabsolut = pai_yabsoluto + y
+		relatar(RELATO_VERBOSE, "Absoluto pai w " + pai_w)
+		x_calculado = pai_x + x
+		y_calculado = pai_y + y
 		escolha(modo_x) {
-			caso POSICAO_PX:
+			caso POSICIONAMENTO_PX:
 				// Por padrão o xabsolut e yabsolut vêm calculado no modo px
-			caso POSICAO_RPAI:
-				xabsolut = pai_xabsoluto + (clamp_real(x, 0, 1) * pai_w)
 				pare
-			caso POSICAO_ABSOLUTO:
-				xabsolut = x
+			caso POSICIONAMENTO_RPAI:
+				x_calculado = pai_x + (clamp_real(x, 0, 1) * pai_w)
 				pare
 			caso contrario:
 				relatar(RELATO_ERRO, "Modo de posicionamento não conhecido " + modo_x)
 				pare
 		}
 		escolha(modo_y) {
-			caso POSICAO_PX:
+			caso POSICIONAMENTO_PX:
 				// Por padrão o xabsolut e yabsolut vêm calculado no modo px
-			caso POSICAO_RPAI:
-				yabsolut = pai_yabsoluto + (clamp_real(y, 0, 1) * pai_h)
 				pare
-			caso POSICAO_ABSOLUTO:
-				xabsolut = y
+			caso POSICIONAMENTO_RPAI:
+				y_calculado = pai_y + (clamp_real(y, 0, 1) * pai_h)
 				pare
 			caso contrario:
 				relatar(RELATO_ERRO, "Modo de posicionamento não conhecido " + modo_y)
 				pare
 		}
 		escolha(modo_h) {
+			caso DIMENSIONAMENTO_PX:
+				h_calculado = h
+				pare
+			caso DIMENSIONAMENTO_RPAI:
+				h_calculado = pai_h * clamp_real(h, 0, 1)
+				pare
 			caso contrario:
 				relatar(RELATO_ERRO, "Modo de posicionamento não conhecido " + modo_h)
 				pare
 		}
 		escolha(modo_w) {
+			caso DIMENSIONAMENTO_PX:
+				w_calculado = w
+				pare
+			caso DIMENSIONAMENTO_RPAI:
+				w_calculado = pai_w * clamp_real(w, 0, 1)
+				relatar(RELATO_VERBOSE, "W calculado " + w_calculado + " clamp " + clamp_real(w,0 , 1))
+				pare
 			caso contrario:
 				relatar(RELATO_ERRO, "Modo de posicionamento não conhecido " + modo_w)
 				pare
 		}
-		obj.atribuir_propriedade(objeto, "xabsoluto", xabsolut)
-		obj.atribuir_propriedade(objeto, "yabsoluto", yabsolut)
-		relatar(RELATO_VERBOSE, "h " + pai_h + " w " + pai_w + " xabs " + xabsolut + " yabs "  + yabsolut)
-		inteiro relacao_posicao = colisao_quadrado_quadrado(pai_cx, pai_cy, pai_h, pai_w, x, y, h, w)
+		// Atribuição manual
+		relatar(RELATO_VERBOSE, "X calculado " + x_calculado + " Y calculado " + y_calculado + "H calculado " + h_calculado + "W calculado " + w_calculado)
+		obj.atribuir_propriedade(objeto, "__x", x_calculado)
+		obj.atribuir_propriedade(objeto, "__y", y_calculado)
+		obj.atribuir_propriedade(objeto, "__h", h_calculado)
+		obj.atribuir_propriedade(objeto, "__w", w_calculado)
+		
+		notificar_mudancas()
+	}
+
+	// Recalcula posição ou tamanho do objeto a depender de sua relação com o objeto pai
+	// Acho que é melhor separar essa função em outras menores, antes que fique complexo de mais....
+	funcao pre_renderizar_objeto(inteiro objeto) {
+		se (nao teste_visibilidade(objeto)) {
+			retorne
+		}
+		calcular_propriedades(objeto)
+		inteiro __x = obj.obter_propriedade_tipo_inteiro(objeto, "__x")
+		inteiro __y = obj.obter_propriedade_tipo_inteiro(objeto, "__y")
+		inteiro __h = obj.obter_propriedade_tipo_inteiro(objeto, "__h")
+		inteiro __w = obj.obter_propriedade_tipo_inteiro(objeto, "__w")
+		inteiro pai_x = 0
+		inteiro pai_y = 0
+		inteiro pai_h = 0
+		inteiro pai_w = 0
+		real pai_cx = 0
+		real pai_cy = 0
+		inteiro canvas_h = 0
+		inteiro canvas_w = 0
+		inteiro endereco_pai = receber_pai(objeto)
+		se (checar_objeto_fraco(endereco_pai)) { // 0 indica que não existe um objeto
+			pai_x = obj.obter_propriedade_tipo_inteiro(objeto, "__x")
+			pai_y = obj.obter_propriedade_tipo_inteiro(objeto, "__y")
+			pai_h = obj.obter_propriedade_tipo_inteiro(objeto, "__h")
+			pai_w = obj.obter_propriedade_tipo_inteiro(objeto, "__w")
+			pai_cx = obj.obter_propriedade_tipo_real(objeto, "cameraX")
+			pai_cy = obj.obter_propriedade_tipo_real(objeto, "cameraY")
+		}
+		inteiro relacao_posicao = colisao_quadrado_quadrado(pai_x, pai_y, pai_h, pai_w, __x, __y, __h, __w)
 		logico continuar = verdadeiro
-		escolha(relacao_posicao) {
+		canvas_h = __h
+		canvas_w = __w
+		se (nao checar_objeto_mestre(objeto)) {
+			escolha(relacao_posicao) {
 			caso COLISAO_DENTRO:
 				pare
 			caso COLISAO_FORA://não renderiza pois estamos fora do corpo do pai
 				continuar = falso
 				pare
 			caso COLISAO_DENTRO_FORA: // recalculamos nosso tamanho para ficarmos dentro do pai
-				canvas_w = pai_cx + pai_w - x
-				canvas_h = pai_cy + pai_h - y
+				canvas_w = pai_cx + pai_w - __x
+				canvas_h = pai_cy + pai_h - __y
 				se (canvas_w <= 0 ou canvas_h <= 0) {
 					 continuar = falso
 				}
 				pare
 			caso COLISAO_FORA_DENTRO: // Por enquanto não lidamos com essa situação
-				canvas_w = w - x + pai_cx
-				canvas_h = h - y + pai_cy
+				canvas_w = __w - __x + pai_cx
+				canvas_h = __h - __y + pai_cy
 				se (canvas_w <= 0 ou canvas_h <= 0) {
 					 continuar = falso
 				}
@@ -630,11 +768,12 @@ programa
 			caso contrario:
 				relatar(RELATO_ERRO, "Ocorreu uma colisão impossível!")
 				pare
+			}
 		}
-		se (continuar) {
-			relatar(RELATO_VERBOSE, "Objeto será renderizado em x: " + xabsolut + " y: " + yabsolut)
+		se (continuar ou checar_objeto_mestre(objeto)) {
+			relatar(RELATO_VERBOSE, "Objeto será renderizado em x: " + __x + " y: " + __y)
 			definir_opacidade(opacidade)
-			renderizar_objeto(objeto, xabsolut, yabsolut, pai_cx, pai_cy, h, w, canvas_h, canvas_w)
+			renderizar_objeto(objeto, __x, __y, pai_cx, pai_cy, __h, __w, canvas_h, canvas_w)
 			restaurar_configuracoes_graficas() // será que isso é realmente necessário?
 			renderizar_filhos(objeto)
 		} senao {
@@ -676,6 +815,19 @@ programa
 		}
 	}
 
+	funcao processar_depuracao() {
+		se (depuracao) {
+			quadros +=1
+			inteiro periodo = tempo_antes - qps_inicio
+			se (periodo >= qps_duracao) {
+				qps = quadros
+				qps_inicio = tempo_antes
+				relatar(RELATO_AVISO, "QPS: " + quadros )
+				quadros = 0
+			}
+		}
+	}
+
 	funcao processar_mouse() {
 		mouseX = mouse.posicao_x()
 		mouseY = mouse.posicao_y()
@@ -689,8 +841,36 @@ programa
 	}
 
 	funcao processar_tela() {
-		
+		inteiro h = g.altura_tela()
+		inteiro w = g.largura_tela()
+		se (h != janela_altura ou w != janela_largura) {
+			atribuir_h(OBJETO_MESTRE, h)
+			atribuir_w(OBJETO_MESTRE, w)
+			notificar_mudancas()
+		}
 	}
+
+	funcao processar_inicial() {
+		inteiro agora = util.tempo_decorrido()
+		tempo_delta = agora - tempo_antes
+		tempo_antes = agora
+	}
+
+	funcao processar_final() {
+		inteiro agora = util.tempo_decorrido()
+		tempo_frame = agora - tempo_antes
+		inteiro tempo_limite = segundos(1)/qps_maximo
+		inteiro tempo_restante = tempo_limite - tempo_frame
+		se (qps_limite > 0 e qps_limite != 0) {
+			tempo_limite = segundos(1)/qps_limite
+			tempo_restante = tempo_limite - tempo_frame
+		}
+		se (tempo_restante > 0) {
+			util.aguarde(tempo_restante)
+		}
+	}
+
+	funcao processar_generico() {}
 
 	funcao definir_padroes() {
 		definir_opacidade(ATUAL_OPACIDADE)
@@ -716,23 +896,23 @@ programa
 	// Usar sempre essas funções quando for manipular objetos
 	funcao atribuir_propriedade_inteiro(inteiro objeto, cadeia p, inteiro i) {
 		obj.atribuir_propriedade(objeto, p, i)
-		notificarMudancas()
+		notificar_mudancas()
 	}
 	funcao atribuir_propriedade_real(inteiro objeto, cadeia p, real r) {
 		obj.atribuir_propriedade(objeto, p, r)
-		notificarMudancas()
+		notificar_mudancas()
 	}
 	funcao atribuir_propriedade_cadeia(inteiro objeto, cadeia p, cadeia c) {
 		obj.atribuir_propriedade(objeto, p, c)
-		notificarMudancas()
+		notificar_mudancas()
 	}
 	funcao atribuir_propriedade_caracter(inteiro objeto,cadeia p,  caracter c) {
 		obj.atribuir_propriedade(objeto, p, c)
-		notificarMudancas()
+		notificar_mudancas()
 	}
 	funcao atribuir_propriedade_logico(inteiro objeto, cadeia p, logico l) {
 		obj.atribuir_propriedade(objeto, p, l)
-		notificarMudancas()
+		notificar_mudancas()
 	}
 	
 	funcao atribuir_x(inteiro objeto, real x) {
@@ -756,6 +936,30 @@ programa
 	funcao atribuir_h(inteiro objeto, real h) {
 		se (checar_objeto_fraco(objeto)) {
 			atribuir_propriedade_real(objeto, "h", h)
+		}
+	}
+
+	funcao atribuir_modox(inteiro objeto, inteiro modo) {
+		se (checar_objeto_fraco(objeto)) {
+			atribuir_propriedade_inteiro(objeto, "modox", modo)
+		}
+	}
+
+	funcao atribuir_modoy(inteiro objeto, inteiro modo) {
+		se (checar_objeto_fraco(objeto)) {
+			atribuir_propriedade_inteiro(objeto, "modoy", modo)
+		}
+	}
+
+	funcao atribuir_modoh(inteiro objeto, inteiro modo) {
+		se (checar_objeto_fraco(objeto)) {
+			atribuir_propriedade_inteiro(objeto, "modoh", modo)
+		}
+	}
+
+	funcao atribuir_modow(inteiro objeto, inteiro modo) {
+		se (checar_objeto_fraco(objeto)) {
+			atribuir_propriedade_inteiro(objeto, "modow", modo)
 		}
 	}
 
@@ -801,6 +1005,12 @@ programa
 		}
 	}
 
+	funcao atribuir_texto(inteiro objeto, cadeia t) {
+		se (checar_objeto_fraco(objeto) e checar_tipo_objeto(objeto, TIPOS_CAIXA_TEXTO)) {
+			atribuir_propriedade_cadeia(objeto, "text", t)
+		}
+	}
+
 	funcao inicializar_graficos() {
 		g.iniciar_modo_grafico(verdadeiro)
 		janela_largura = g.largura_tela()
@@ -825,28 +1035,51 @@ programa
 	}
 
 	funcao biblioteca_ui_tick() {
-		processar_tela()
+		processar_inicial()
 		processar_mouse()
 		processar_teclado()
+		processar_generico()
+		processar_tela()
+		processar_depuracao()
 		se(houveramMudancas) {
 			renderizar()
 			houveramMudancas = falso
 		}
+		processar_final()
 	}
-
-
+	
 	funcao inicio()
  	{
  		inicializar_biblioteca_ui()
 		definir_fonte("Roboto")
-		inteiro container = criar_retangulo(0, 0, 100, 100)
-		atribuir_cor(container, g.COR_AMARELO)
-		inteiro texto = criar_caixa_texto("Teste")
-		adotar(container, texto)
-		inserir_objeto(container)
+		inteiro fps = criar_caixa_texto("FPS: 0")
+		atribuir_cor(fps, g.COR_PRETO)
+		inserir_objeto(fps)
+		inteiro botao = criar_botao("Teste1", "", 0, 0, 0.6, 0.6)
+		inteiro botao2 = criar_botao("Teste2", "", 0, 0, 0.5, 0.5)
+		inteiro botao3 = criar_botao("Teste3", "", 0, 0, 0.5, 0.5)
+		inteiro botao4 = criar_botao("Teste4", "", 0, 0, 0.5, 0.5)
+		atribuir_modoh(botao, DIMENSIONAMENTO_RPAI)
+		atribuir_modow(botao, DIMENSIONAMENTO_RPAI)
+		atribuir_cor(botao, g.COR_AZUL)
+		atribuir_modoh(botao2, DIMENSIONAMENTO_RPAI)
+		atribuir_modow(botao2, DIMENSIONAMENTO_RPAI)
+		atribuir_cor(botao2, g.COR_PRETO)
+		atribuir_modoh(botao3, DIMENSIONAMENTO_RPAI)
+		atribuir_modow(botao3, DIMENSIONAMENTO_RPAI)
+		atribuir_cor(botao3, g.COR_AMARELO)
+		atribuir_modoh(botao4, DIMENSIONAMENTO_RPAI)
+		atribuir_modow(botao4, DIMENSIONAMENTO_RPAI)
+		atribuir_cor(botao4, g.COR_VERMELHO)
+		//inserir_objeto(botao)
+		adotar(botao, botao2)
+		adotar(botao2, botao3)
+		adotar(botao3, botao4)
 		enquanto (nao kb.tecla_pressionada(kb.TECLA_ESC))
-		{
-			biblioteca_ui_tick()			
+		{	
+			atribuir_texto(fps, "FPS: " + qps)
+			biblioteca_ui_tick()
+			
 		}
 		biblioteca_ui_finalizar()
 	}
@@ -858,7 +1091,8 @@ programa
  * Esta seção do arquivo guarda informações do Portugol Studio.
  * Você pode apagá-la se estiver utilizando outro editor.
  * 
- * @POSICAO-CURSOR = 4607; 
+ * @POSICAO-CURSOR = 21426; 
+ * @DOBRAMENTO-CODIGO = [89, 93, 97, 101, 105];
  * @PONTOS-DE-PARADA = ;
  * @SIMBOLOS-INSPECIONADOS = ;
  * @FILTRO-ARVORE-TIPOS-DE-DADO = inteiro, real, logico, cadeia, caracter, vazio;
