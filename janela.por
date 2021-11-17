@@ -7,15 +7,20 @@ programa
 	inclua biblioteca Util --> ut
 	inclua biblioteca Mouse --> mu
 	inclua biblioteca Objetos --> ob
+	inclua biblioteca Texto --> tx
+	inclua biblioteca Arquivos --> ar
 
 	//CORES
 	const inteiro COR_BACKGROUND_LIGHT_GRAY = 0xeef0f1
 	const inteiro COR_BACKGROUND_GRAY = 0xe0e0e0
+	const inteiro COR_TEXTO_BOTAO = 0x3b3b3b
+	const inteiro COR_PROFUNDO = 0xb3b3b3
 	const inteiro COR_PRIMARY = -1610948
 	const inteiro COR_PRIMARY_LIGHT = -25751
 	const inteiro COR_PRIMARY_DARK = -5293040
 	const inteiro COR_SECONDARY = -12868914
 	const inteiro COR_PRETO = 0
+	const inteiro COR_PERIGO = 0xd62e00
 
 	// DEBUGGING
 	const inteiro RELATO_NORMAL = 0
@@ -133,13 +138,13 @@ programa
 
 	// Admistração de objetos
 	inteiro OBJETO_MESTRE = -1
-	inteiro OBJETO_FOCADO = 0
+	inteiro OBJETO_FOCADO = -1
 	const inteiro MAXIMO_DE_PAIS = 3000
 	const inteiro MAXIMO_DE_FILHOS = 200
 
 	inteiro quantidade_filhos[MAXIMO_DE_PAIS]
 	inteiro filhos[MAXIMO_DE_PAIS][MAXIMO_DE_FILHOS]
-	inteiro nomeados = ob.criar_objeto()
+	inteiro nomeados = criar_objeto()
 
 	// Buffer de imagens, elas têm de ser desenhadas no final!
 	inteiro quantidade_imagens = 0
@@ -151,8 +156,9 @@ programa
 	const inteiro TIPOS_RETANGULO = 1
 	const inteiro TIPOS_CAIXA_TEXTO = 2
 	const inteiro TIPOS_BOTAO = 3
+	const inteiro TIPOS_CAIXA_TEXTO_EDITAVEL = 4
 
-	const cadeia TIPOS[] = {"MESTRE", "RETANGULO", "CAIXA_TEXTO", "BOTAO"}
+	const cadeia TIPOS[] = {"MESTRE", "RETANGULO", "CAIXA_TEXTO", "BOTAO", "CAIXA_TEXTO_EDITAVEL"}
 	
 	const inteiro TIPOS_TAMANHOS[] = {15, 19, 16}
 
@@ -185,6 +191,9 @@ programa
 	inteiro mouse_pressionado_sobre[LIMITE_MOUSE_OBJETOS]
 	inteiro quantidade_mouse_pressionado_sobre_antes = 0
 	inteiro mouse_pressionado_sobre_antes[LIMITE_MOUSE_OBJETOS]
+	// Teclado
+	
+	
 
 	// Eventos
 	const inteiro EVENTO_MOUSE_ESQUERDO_PRESSIONAR = 0
@@ -197,6 +206,7 @@ programa
 	const inteiro EVENTO_MOUSE_DIREITO_SOLTAR = 7
 	const inteiro EVENTO_MOUSE_DIREITO_CLICAR = 8
 	const inteiro EVENTO_MOUSE_MOVER = 9
+	const inteiro EVENTO_TECLA_PRESSIONAR = 10
 	const inteiro LIMITE_EVENTOS = 4096
 	const inteiro LIMITE_ARGUMENTOS = 10
 	inteiro quantidade_eventos = 0
@@ -207,13 +217,16 @@ programa
 	
 
 	// Padrões de estilização
-	const logico PADROES_ARREDONDADO = falso
+	const inteiro PADROES_RAIO_X = 0
+	const inteiro PADROES_RAIO_Y = 0
 	const logico PADROES_PREENCHER = verdadeiro
 	const inteiro PADROES_OPACIDADE = 255
 	const inteiro PADROES_ROTACAO = 0
 	const inteiro PADROES_COR = -1
 	const inteiro PADROES_COR_TEXTO = 0
-	const inteiro PADROES_OPACIDADE_TEXTO = 230
+	const inteiro PADROES_COR_PROFUNDIDADE = 0xb3b3b3
+	const inteiro PADROES_OPACIDADE_TEXTO = 255
+	const inteiro PADROES_OPACIDADE_PLACEHOLDER = 150
 	const inteiro PADROES_POSICIONAMENTO = 1
 	const inteiro PADROES_DIMENSIONAMENTO = 1
 	const inteiro PADROES_PAI = -1
@@ -232,13 +245,16 @@ programa
 	const real PADROES_TAMANHO_FONTE = 16.0
 
 	// Valores atuais de estilização
-	logico ATUAL_ARREDONDADO = PADROES_ARREDONDADO
+	inteiro ATUAL_RAIO_X = PADROES_RAIO_X
+	inteiro ATUAL_RAIO_Y = PADROES_RAIO_Y
 	logico ATUAL_PREENCHER = PADROES_PREENCHER
 	inteiro ATUAL_OPACIDADE = PADROES_OPACIDADE
 	inteiro ATUAL_ROTACAO = PADROES_ROTACAO
 	inteiro ATUAL_COR = PADROES_COR
 	inteiro ATUAL_COR_TEXTO = PADROES_COR_TEXTO
+	inteiro ATUAL_COR_PROFUNDIDADE = PADROES_COR_PROFUNDIDADE
 	inteiro ATUAL_OPACIDADE_TEXTO = PADROES_OPACIDADE_TEXTO
+	inteiro ATUAL_OPACIDADE_PLACEHOLDER = PADROES_OPACIDADE_PLACEHOLDER
 	inteiro ATUAL_POSICIONAMENTO = PADROES_POSICIONAMENTO
 	inteiro ATUAL_DIMENSIONAMENTO = PADROES_DIMENSIONAMENTO
 	inteiro ATUAL_PAI = PADROES_PAI
@@ -394,6 +410,17 @@ programa
 		retorne verdadeiro
 	}
 
+	funcao destruir_filhos(inteiro pai) {
+		se (checar_objeto_fraco(pai)) {
+			para (inteiro i = 0; i < quantidade_filhos[pai]; i++) {
+				inteiro filho = filhos[pai][i]
+				ob.liberar_objeto(filho)
+				filhos[pai][i] = -1
+			}
+			quantidade_filhos[pai] = 0
+		}
+	}
+
 	funcao logico colisao_retangulo_ponto(inteiro x, inteiro y, inteiro h, inteiro w, inteiro x2, inteiro y2) {
 		retorne x2 >= x e x2 <= x + w e y2 >= y e y2 <= y + h
 	}
@@ -472,6 +499,15 @@ programa
 		}
 	}
 
+	funcao cadeia receber_nome(inteiro objeto) {
+		se (checar_objeto_fraco(objeto)) {
+			se (ob.contem_propriedade(objeto, "nome")) {
+				retorne ob.obter_propriedade_tipo_cadeia(objeto, "nome")
+			}
+		}
+		retorne "__nonexistantobject0x190231"
+	}
+
 	funcao inteiro procurar_nomeado(cadeia nome) {
 		se (ob.contem_propriedade(nomeados, nome)) {
 			retorne ob.obter_propriedade_tipo_inteiro(nomeados, nome)
@@ -479,11 +515,15 @@ programa
 		retorne -1
 	}
 
+	funcao inteiro criar_objeto() {
+		retorne ob.criar_objeto()
+	}
+
 	funcao inteiro criar_objeto_base(inteiro tipo) {
-		inteiro objeto = ob.criar_objeto()
+		inteiro objeto = criar_objeto()
 		se (nao checar_objeto_fraco(objeto)) {
 			relatar(RELATO_ERRO, "Chegamos no limite de objetos, redirecionando para o objeto 0")
-			retorne 0
+			retorne OBJETO_MESTRE
 		}
 		ob.atribuir_propriedade(objeto, "x", ATUAL_X)
 		ob.atribuir_propriedade(objeto, "modox", ATUAL_POSICIONAMENTO)
@@ -521,7 +561,8 @@ programa
 
 	funcao inteiro criar_retangulo(real x, real y, real h, real w) {
 		inteiro retangulo = criar_objeto_base(TIPOS_RETANGULO)
-		ob.atribuir_propriedade(retangulo, "arredondado", ATUAL_ARREDONDADO)
+		ob.atribuir_propriedade(retangulo, "raio_x", ATUAL_RAIO_X)
+		ob.atribuir_propriedade(retangulo, "raio_y", ATUAL_RAIO_Y)
 		ob.atribuir_propriedade(retangulo, "preencher", ATUAL_PREENCHER)
 		ob.atribuir_propriedade(retangulo, "x", x)
 		ob.atribuir_propriedade(retangulo, "y", y)
@@ -552,17 +593,31 @@ programa
 		retorne objeto
 	}
 
+	funcao inteiro criar_caixa_texto_editavel(cadeia texto, real x, real y, real h, real w) {
+		inteiro container = criar_retangulo(x, y, h, w)
+		ob.atribuir_propriedade(container, "cor", ATUAL_COR_PROFUNDIDADE)
+		mudar_objeto_tipo(container, TIPOS_CAIXA_TEXTO_EDITAVEL)
+		ob.atribuir_propriedade(container, "valor", "")
+		ob.atribuir_propriedade(container, "placeholder", texto)
+		inteiro objeto = criar_caixa_texto(texto, 0.5, 0.5)
+		ob.atribuir_propriedade(objeto, "opacidade", ATUAL_OPACIDADE_PLACEHOLDER)
+		ob.atribuir_propriedade(objeto, "focavel", falso)
+		adotar(container, objeto)
+		retorne container
+	}
+
 	funcao inteiro criar_botao(cadeia texto, cadeia id, real x, real y, real h, real w) {
 		inteiro botao = criar_retangulo(x, y, h, w)
 		mudar_objeto_tipo(botao, TIPOS_BOTAO)
 		inteiro filho_texto = criar_caixa_texto(texto, 0.5, 0.5)
+		ob.atribuir_propriedade(filho_texto, "cor", COR_TEXTO_BOTAO)
 		adotar(botao, filho_texto)
 		nomear_objeto(botao, id)
 		retorne botao
 	}
 	
 	funcao inteiro criar_objeto_imagem(inteiro imagem, inteiro x, inteiro y) {
-		inteiro endereco = ob.criar_objeto()
+		inteiro endereco = criar_objeto()
 		ob.atribuir_propriedade(endereco, "imagem", imagem)
 		ob.atribuir_propriedade(endereco, "x", x)
 		ob.atribuir_propriedade(endereco, "y", y)
@@ -602,8 +657,9 @@ programa
 
 	funcao renderizar_retangulo(inteiro objeto, inteiro x, inteiro y, inteiro h, inteiro w) {
 		logico preencher = ob.obter_propriedade_tipo_logico(objeto, "preencher")
-		logico arredondado = ob.obter_propriedade_tipo_logico(objeto, "arredondado")
-		gf.desenhar_retangulo(x, y, w, h, arredondado, preencher)
+		inteiro raio_x = ob.obter_propriedade_tipo_inteiro(objeto, "raio_x")
+		inteiro raio_y = ob.obter_propriedade_tipo_inteiro(objeto, "raio_y")
+		gf.desenhar_retangulo_arredondado(x, y, w, h, raio_x, raio_y, preencher)
 	}
 
 	funcao renderizar_caixa_texto(inteiro objeto, inteiro x, inteiro y, inteiro h, inteiro w) {
@@ -619,6 +675,17 @@ programa
 		gf.desenhar_texto(x, y, text)
 	}
 
+	funcao renderizar_caixa_texto_editavel(inteiro objeto, inteiro x, inteiro y, inteiro h, inteiro w) {
+		cadeia placeholder = ob.obter_propriedade_tipo_cadeia(objeto, "placeholder")
+		cadeia valor = ob.obter_propriedade_tipo_cadeia(objeto, "valor")
+		inteiro texto_filho = primeiro_filho_tipo(objeto, TIPOS_CAIXA_TEXTO)
+		se (valor != "") {
+			atribuir_texto(texto_filho, valor)
+		} senao {
+			atribuir_texto(texto_filho, placeholder)
+		}
+		renderizar_retangulo(objeto, x, y, h, w)
+	}
 	
 	funcao renderizar_botao(inteiro objeto, inteiro x, inteiro y, inteiro h, inteiro w) {
 		renderizar_retangulo(objeto, x, y, h, w)
@@ -638,6 +705,9 @@ programa
 			pare
 		caso TIPOS_MESTRE:
 			renderizar_retangulo(objeto, x, y, h, w)
+			pare
+		caso TIPOS_CAIXA_TEXTO_EDITAVEL:
+			renderizar_caixa_texto_editavel(objeto, x, y, h, w)
 			pare
 		caso contrario:
 			relatar(RELATO_ERRO, "Houve a tentativa de renderizar um tipo desconhecido com enum: " + tipo)
@@ -719,7 +789,6 @@ programa
 		logico visivel = ob.obter_propriedade_tipo_logico(objeto, "visivel")
 		inteiro opacidad = ob.obter_propriedade_tipo_inteiro(objeto, "opacidade")
 		se (nao visivel ou opacidade <= 0) { // Não renderiza caso o objeto esteja invisível
-			relatar(RELATO_DEBUG, "Objeto " + objeto + " está invísivel")
 			retorne falso
 		}
 		retorne verdadeiro
@@ -989,26 +1058,36 @@ programa
 	
 	funcao limpar_eventos() {
 		para(inteiro i = 0; i < quantidade_eventos; i++) {
-			escreva(i + " " + eventos[i], "\n")
 			ob.liberar_objeto(eventos[i])
 			eventos[i] = -1
 		}
 		quantidade_eventos = 0
 	}
 
+	funcao adicionar_evento(inteiro evento) {
+		eventos[quantidade_eventos] = evento
+		quantidade_eventos += 1
+	}
+
+	funcao criar_evento_teclado(inteiro tipo, inteiro tecla) {
+		se (checar_objeto_fraco(OBJETO_FOCADO)) {
+			inteiro evento = criar_evento_base(tipo, OBJETO_FOCADO)
+			ob.atribuir_propriedade(evento, "tecla", tecla)
+			adicionar_evento(evento)
+		}
+	}
+
 	funcao inteiro criar_evento_base(inteiro tipo, inteiro objeto) {
-		inteiro evento = ob.criar_objeto()
+		inteiro evento = criar_objeto()
 		ob.atribuir_propriedade(evento, "tipo", tipo)
 		ob.atribuir_propriedade(evento, "objeto", objeto)
 		retorne evento
 	}
 
 	funcao criar_evento_mouse(inteiro tipo, inteiro objeto, logico atirar) {
-		se (atirar) {
+		se (checar_objeto_fraco(objeto) e atirar) {
 			inteiro evento = criar_evento_base(tipo, objeto)
-			relatar(RELATO_DEBUG, "Evento criado com id " + evento)
-			eventos[quantidade_eventos] = evento
-			quantidade_eventos += 1
+			adicionar_evento(evento)
 		}
 	}
 
@@ -1058,7 +1137,10 @@ programa
 	}
 
 	funcao processar_teclado() {
-		
+		se (kb.alguma_tecla_pressionada()) {
+			inteiro tecla = kb.ler_tecla()
+			criar_evento_teclado(EVENTO_TECLA_PRESSIONAR, tecla)
+		}
 	}
 
 	funcao processar_tela() {
@@ -1093,7 +1175,48 @@ programa
 		}
 	}
 
+	funcao processar_focado() {}
+
 	funcao processar_generico() {}
+
+	funcao processar_eventos() {
+		para (inteiro i = 0; i < quantidade_eventos; i++) {
+			inteiro evento = eventos[i]
+			inteiro objeto = ob.obter_propriedade_tipo_inteiro(evento, "objeto")
+			se (checar_objeto_fraco(objeto)) {
+				inteiro tipo = ob.obter_propriedade_tipo_inteiro(evento, "tipo")
+				logico aceita_entrada = ob.contem_propriedade(objeto, "valor")
+				escolha (tipo) {
+				caso EVENTO_TECLA_PRESSIONAR:
+					se (aceita_entrada) {
+						inteiro tecla = ob.obter_propriedade_tipo_inteiro(evento, "tecla")
+						cadeia valor = ob.obter_propriedade_tipo_cadeia(objeto, "valor")
+						inteiro tamanho_valor = tx.numero_caracteres(valor)
+						escolha (tecla) {
+						caso kb.TECLA_BACKSPACE:
+							inteiro diminuir = tamanho_valor - 1
+							se (diminuir < 0) {
+								diminuir = 0
+							}
+							valor = tx.extrair_subtexto(valor, 0, diminuir)
+							pare
+						caso kb.TECLA_ESPACO:
+							valor += ' '
+							pare
+						caso contrario:
+							caracter char = kb.caracter_tecla(tecla)
+							valor += char
+							pare
+						}
+						atribuir_valor(objeto, valor)
+					}
+					pare
+				caso contrario:
+					pare
+				}
+			}
+		}
+	}
 
 	funcao definir_padroes() {
 		definir_opacidade(ATUAL_OPACIDADE)
@@ -1298,9 +1421,15 @@ programa
 		}
 	}
 
-	funcao atribuir_arredondado(inteiro objeto, logico a) {
+	funcao atribuir_raio_x(inteiro objeto, inteiro r) {
 		se (checar_objeto_fraco(objeto)) {
-			atribuir_propriedade_logico(objeto, "arredondado", a)
+			atribuir_propriedade_inteiro(objeto, "raio_x", r)
+		}
+	}
+
+	funcao atribuir_raio_y(inteiro objeto, inteiro r) {
+		se (checar_objeto_fraco(objeto)) {
+			atribuir_propriedade_inteiro(objeto, "raio_y", r)
 		}
 	}
 
@@ -1325,6 +1454,12 @@ programa
 	funcao atribuir_focavel(inteiro objeto, logico f) {
 		se (checar_objeto_fraco(objeto)) {
 			atribuir_propriedade_logico(objeto, "focavel", f)
+		}
+	}
+
+	funcao atribuir_valor(inteiro objeto, cadeia v) {
+		se (checar_objeto_fraco(objeto)) {
+			atribuir_propriedade_cadeia(objeto, "valor", v)
 		}
 	}
 
@@ -1362,34 +1497,304 @@ programa
 			renderizar()
 			houveramMudancas = falso
 		}
+		processar_eventos()
 		processar_final()
 	}
 
+	// A PARTIR DAQUI NÃO É MAIS CÓDIGO DA BIBLIOTECA
+
+	const cadeia ARQUIVO = "./alunos.txt"
+
+	const inteiro ALTURA_CONTAINER_ALUNO = 40
+
+	const inteiro limite_alunos = 1024
+	inteiro quantidade_alunos = 0
+	inteiro alunos[limite_alunos]
+
+	// Nomes de objetos
+	// Containers
+	const cadeia CONTAINER_LISTAGEM_ALUNOS = "container_listagem_alunos"
+	// ESTADO
+	const cadeia ESTADO_LISTAGEM_ALUNOS = "estado_listagem_alunos"
+	// Telas
+	const cadeia TELA_CADASTRO_ALUNOS = "tela_cadastro_alunos"
+	const cadeia TELA_LISTAGEM_ALUNOS = "tela_listagem_alunos"
+	// Botões
+	const cadeia BOTAO_ADICIONAR_ALUNO = "botao_adicionar_aluno"
+	const cadeia BOTAO_CADASTRO_ALUNOS = "botao_cadastro_alunos"
+	const cadeia BOTAO_LISTAGEM_ALUNOS = "botao_listagem_alunos"
+	const cadeia BOTAO_SISTEMA_SAIR = "botao_sistema_sair"
+	const cadeia BOTAO_LISTAGEM_PASSAR_PAGINA = "botao_listagem_passar_pagina"
+	const cadeia BOTAO_LISTAGEM_VOLTAR_PAGINA = "botao_listagem_voltar_pagina"
+	// Caixas editáveis
+	const cadeia CAIXA_NOME_ALUNO = "caixa_nome_aluno"
+	const cadeia CAIXA_IDADE_ALUNO = "caixa_idade_aluno"
+	const cadeia CAIXA_TELEFONE_ALUNO = "caixa_telefone_aluno"
+
+	funcao recarregar_listagem() {
+		inteiro container_alunos = procurar_nomeado(CONTAINER_LISTAGEM_ALUNOS)
+		inteiro botao_anterior = procurar_nomeado(BOTAO_LISTAGEM_VOLTAR_PAGINA)
+		inteiro botao_proximo = procurar_nomeado(BOTAO_LISTAGEM_PASSAR_PAGINA)
+		inteiro estado = procurar_nomeado(ESTADO_LISTAGEM_ALUNOS)
+		destruir_filhos(container_alunos)
+		inteiro pagina = ob.obter_propriedade_tipo_inteiro(estado, "pagina")
+		inteiro maximo_alunos = ob.obter_propriedade_tipo_inteiro(estado, "alunos_por_pagina")
+		inteiro index_inicio = maximo_alunos * (pagina - 1)
+		inteiro ultima_pagina = mt.arredondar(( quantidade_alunos / maximo_alunos ) - 0.5, 1)
+		se (index_inicio < 0) {
+			index_inicio = 0
+		}
+		atribuir_visivel(botao_anterior, verdadeiro)
+		atribuir_visivel(botao_proximo, verdadeiro)
+		se (pagina == 0) {
+			atribuir_visivel(botao_anterior, falso)
+		}
+		se (pagina == ultima_pagina) {
+			atribuir_visivel(botao_proximo, falso)
+		}
+		se (quantidade_alunos > 0) {
+			para (inteiro i = 0; i < quantidade_alunos e i < (index_inicio + maximo_alunos - 1); i++) {
+			inteiro aluno = alunos[i]
+			cadeia nome = ob.obter_propriedade_tipo_cadeia(aluno, "nome")
+			inteiro idade = ob.obter_propriedade_tipo_inteiro(aluno, "idade")
+			cadeia telefone = ob.obter_propriedade_tipo_cadeia(aluno, "telefone")
+				inteiro objeto_aluno = construir_aluno_listagem(nome, idade, telefone, i)
+				adotar(container_alunos, objeto_aluno)
+			}
+		} senao {
+			inteiro aviso = criar_caixa_texto("Não existem alunos cadastrados no sistema", 0.5, 0.5)
+			adotar(container_alunos, aviso)
+		}
+	}
+
+	funcao carregar_alunos() {
+		se (ar.arquivo_existe(ARQUIVO)) {
+			inteiro handle = ar.abrir_arquivo(ARQUIVO, ar.MODO_LEITURA)
+			cadeia linha = ""
+			inteiro controle = 0
+			cadeia nome = ""
+			cadeia idade = ""
+			cadeia telefone = ""
+			enquanto (linha != "__fim__") {
+				escolha (controle) {
+					caso 0:
+						nome = ar.ler_linha(handle)
+						pare
+					caso 1:
+						idade = ar.ler_linha(handle)
+						pare
+					caso 2:
+						telefone = ar.ler_linha(handle)
+						pare
+					caso 3:
+						adicionar_aluno(nome, idade, telefone)
+						pare
+					caso 4:
+						linha = ar.ler_linha(handle)
+						controle = 0
+						pare
+					caso contrario:
+						controle = 0
+						pare
+				}
+			}
+		}
+	}
+
+	funcao salvar_alunos() {
+		inteiro handle = ar.abrir_arquivo(ARQUIVO, ar.MODO_ESCRITA)
+		para (inteiro i = 0; i < quantidade_alunos; i++) {
+			inteiro aluno = alunos[i]
+			cadeia nome = ob.obter_propriedade_tipo_cadeia(aluno, "nome")
+			inteiro idade = ob.obter_propriedade_tipo_inteiro(aluno, "idade")
+			cadeia telefone = ob.obter_propriedade_tipo_cadeia(aluno, "telefone")
+			cadeia idad = tp.inteiro_para_cadeia(idade, 10)
+			ar.escrever_linha(nome, handle)
+			ar.escrever_linha(idad, handle)
+			ar.escrever_linha(telefone, handle)
+			ar.escrever_linha("__continuar__", handle)
+		}
+		ar.escrever_linha("__fim__", handle)
+	}
+
+	funcao logico adicionar_aluno(cadeia nome, cadeia idade, cadeia telefone) {
+		se (tp.cadeia_e_inteiro(idade, 10) e nome != "" e telefone != "") {
+			inteiro idad = tp.cadeia_para_inteiro(idade, 10)
+			inteiro aluno = criar_objeto()
+			ob.atribuir_propriedade(aluno, "nome", nome)
+			ob.atribuir_propriedade(aluno, "idade", idad)
+			ob.atribuir_propriedade(aluno, "telefone", telefone)
+			alunos[quantidade_alunos] = aluno
+			quantidade_alunos++
+			retorne verdadeiro
+		} senao {
+			retorne falso
+		}
+
+	}
+
+	funcao botao_adicionar_aluno() {
+		inteiro caixa_nome = procurar_nomeado(CAIXA_NOME_ALUNO)
+		inteiro caixa_idade = procurar_nomeado(CAIXA_IDADE_ALUNO)
+		inteiro caixa_telefone = procurar_nomeado(CAIXA_TELEFONE_ALUNO)
+		se (caixa_nome == -1 ou caixa_idade == -1 ou caixa_telefone == -1) {
+			relatar(RELATO_ERRO, "Não foi possível encontrar as caixas de texto necessárias para adc aluno")
+		} senao {
+			cadeia nome = ob.obter_propriedade_tipo_cadeia(caixa_nome, "valor")
+			cadeia idade = ob.obter_propriedade_tipo_cadeia(caixa_idade, "valor")
+			cadeia telefone = ob.obter_propriedade_tipo_cadeia(caixa_telefone, "valor")
+			se (adicionar_aluno(nome, idade, telefone)) {
+				atribuir_valor(caixa_nome, "")
+				atribuir_valor(caixa_idade, "")
+				atribuir_valor(caixa_telefone, "")
+			}
+		}
+	}
+
+	funcao botao_sistema_sair() {
+		salvar_alunos()
+		biblioteca_ui_finalizar()
+	}
+
+	funcao botao_cadastro_alunos() {
+		inteiro listagem = procurar_nomeado(TELA_LISTAGEM_ALUNOS)
+		inteiro cadastro = procurar_nomeado(TELA_CADASTRO_ALUNOS)
+		atribuir_visivel(listagem, falso)
+		atribuir_visivel(cadastro, verdadeiro)
+	}
+
+	funcao botao_listagem_alunos() {
+		inteiro listagem = procurar_nomeado(TELA_LISTAGEM_ALUNOS)
+		inteiro cadastro = procurar_nomeado(TELA_CADASTRO_ALUNOS)
+		atribuir_visivel(listagem, verdadeiro)
+		atribuir_visivel(cadastro, falso)
+		recarregar_listagem()
+	}
+
+	funcao botao_listagem_proximo() {
+		inteiro estado = procurar_nomeado(ESTADO_LISTAGEM_ALUNOS)
+	}
+
+	funcao botao_listagem_anterior() {
+		inteiro estado = procurar_nomeado(ESTADO_LISTAGEM_ALUNOS)
+	}
+	
 	funcao inteiro construir_caixa_com_label(cadeia label, real x, real y, real h, real w) {
 		inteiro caixa = criar_retangulo(x, y, h, w)
 			inteiro labe = criar_caixa_texto(label, 0, 0)
+			atribuir_opacidade(labe, porcentagem_limite_inteiro(0.522, 255))
+			atribuir_tamanho_fonte(labe, 24)
 			atribuir_margem_esquerda(labe, 10)
 			atribuir_margem_topo(labe, 10)
 			adotar(caixa, labe)
 		retorne caixa
 	}
 
+	funcao inteiro construir_aluno_listagem(cadeia nome, inteiro idade, cadeia telefone, inteiro index) {
+		cadeia idad = "??"
+		idad = tp.inteiro_para_cadeia(idade, 10)
+		inteiro container = criar_retangulo(0, index * ALTURA_CONTAINER_ALUNO, ALTURA_CONTAINER_ALUNO, 1)
+		atribuir_modoy(container, POSICIONAMENTO_PX)
+			inteiro texto_nome = criar_caixa_texto(nome, 0, 0)
+			adotar(container, texto_nome)
+			inteiro texto_idade = criar_caixa_texto(idad, 0.33, 0)
+			adotar(container, texto_idade)
+			inteiro texto_telefone = criar_caixa_texto(telefone, 0.66, 0)
+			adotar(container, texto_telefone)
+		retorne container
+	}
 
 	funcao inteiro construir_cadastro_aluno() {
 		inteiro cadastro_aluno = construir_caixa_com_label("Cadastrar aluno", 0.5, 0.5, 0.35, 0.35)
-		atribuir_cor(cadastro_aluno, COR_BACKGROUND_LIGHT_GRAY)
-			inteiro adicionar_aluno = criar_botao("Adicionar", "adicionar_aluno", 0.5, 0.9, 0.1, 0.15)
-			atribuir_arredondado(adicionar_aluno, verdadeiro)
+		nomear_objeto(cadastro_aluno, TELA_CADASTRO_ALUNOS)
+		atribuir_raio_x(cadastro_aluno, 4)
+		atribuir_raio_y(cadastro_aluno, 4)
+		atribuir_cor(cadastro_aluno, gf.COR_BRANCO)
+			inteiro adicionar_aluno = criar_botao("Adicionar", BOTAO_ADICIONAR_ALUNO, 0.5, 0.9, 0.1, 0.15)
+			atribuir_raio_x(adicionar_aluno, 10)
+			atribuir_raio_y(adicionar_aluno, 10)
 			atribuir_focavel(adicionar_aluno, falso)
 			atribuir_cor(adicionar_aluno, COR_PRIMARY)
+			adotar(cadastro_aluno, adicionar_aluno)
 				inteiro adicionar_aluno_texto = primeiro_filho_tipo(adicionar_aluno, TIPOS_CAIXA_TEXTO)
-				atribuir_opacidade(adicionar_aluno_texto, porcentagem_limite_inteiro(0.8, 255))
 				atribuir_tamanho_fonte(adicionar_aluno_texto, 16)
-				adotar(cadastro_aluno, adicionar_aluno)
+			inteiro nome_do_aluno = criar_caixa_texto_editavel("Insira o nome do aluno", 0.5, 0.2, 0.1, 0.4)
+			nomear_objeto(nome_do_aluno, CAIXA_NOME_ALUNO)
+			adotar(cadastro_aluno, nome_do_aluno)
+			inteiro idade_do_aluno = criar_caixa_texto_editavel("Insira a idade do aluno", 0.5, 0.4, 0.1, 0.4)
+			nomear_objeto(idade_do_aluno, CAIXA_IDADE_ALUNO)
+			adotar(cadastro_aluno, idade_do_aluno)
+			inteiro telefone_do_aluno = criar_caixa_texto_editavel("Insira o telefone do aluno", 0.5, 0.6, 0.1, 0.4)
+			nomear_objeto(telefone_do_aluno, CAIXA_TELEFONE_ALUNO)
+			adotar(cadastro_aluno, telefone_do_aluno)
 		retorne cadastro_aluno
 	}
 
-	// A PARTIR DAQUI NÃO É MAIS CÓDIGO DA BIBLIOTECA
+	funcao inteiro criar_estado_listagem_alunos(inteiro alunos_por_pagina) {
+		inteiro objeto = criar_objeto()
+		ob.atribuir_propriedade(objeto, "pagina", 0)
+		ob.atribuir_propriedade(objeto, "alunos", 0)
+		ob.atribuir_propriedade(objeto, "alunos_por_pagina", alunos_por_pagina)
+		nomear_objeto(objeto, ESTADO_LISTAGEM_ALUNOS)
+		retorne objeto
+	}
+
+	funcao inteiro construir_listagem_alunos(inteiro alunos_por_pagina, real altura_por_aluno) {
+		inteiro estado = criar_estado_listagem_alunos(alunos_por_pagina)
+		inteiro tamanho = alunos_por_pagina * altura_por_aluno + 100
+		inteiro listagem = construir_caixa_com_label("Listagem de alunos", 0.5, 0.5, tamanho, 0.5)
+		atribuir_modoh(listagem, DIMENSIONAMENTO_PX)
+		nomear_objeto(listagem, TELA_LISTAGEM_ALUNOS)
+			inteiro container_alunos = criar_retangulo(100, 100, alunos_por_pagina * altura_por_aluno, 1)
+			nomear_objeto(container_alunos, CONTAINER_LISTAGEM_ALUNOS)
+			atribuir_margem_topo(container_alunos, 100)
+			atribuir_modoh(container_alunos, DIMENSIONAMENTO_PX)
+			adotar(listagem, container_alunos)
+			inteiro container_footer = criar_retangulo(0.5, 1, 0.1, 0.2)
+				atribuir_margem_topo(container_footer, -5)
+				adotar(listagem, container_footer)
+					inteiro botao_passar_pagina = criar_botao("Próxima", BOTAO_LISTAGEM_PASSAR_PAGINA, 1, 0.5, 30, 80)
+					atribuir_modoh(botao_passar_pagina, DIMENSIONAMENTO_PX)
+					atribuir_modow(botao_passar_pagina, DIMENSIONAMENTO_PX)
+					atribuir_raio_x(botao_passar_pagina, 4)
+					atribuir_raio_y(botao_passar_pagina, 4)
+					atribuir_cor(botao_passar_pagina, COR_PRIMARY)
+					adotar(container_footer, botao_passar_pagina)
+					inteiro botao_voltar_pagina = criar_botao("Anterior", BOTAO_LISTAGEM_VOLTAR_PAGINA, 0, 0.5, 30, 80)
+					atribuir_modoh(botao_voltar_pagina, DIMENSIONAMENTO_PX)
+					atribuir_modow(botao_voltar_pagina, DIMENSIONAMENTO_PX)
+					atribuir_raio_x(botao_voltar_pagina, 4)
+					atribuir_raio_y(botao_voltar_pagina, 4)
+					atribuir_cor(botao_voltar_pagina, COR_PRIMARY)
+					adotar(container_footer, botao_voltar_pagina)
+		retorne listagem
+	}
+
+	funcao lidar_eventos() {
+		para (inteiro i = 0; i < quantidade_eventos; i++) {
+			inteiro evento = eventos[i]
+			inteiro objeto = ob.obter_propriedade_tipo_inteiro(evento, "objeto")
+			se (checar_objeto_fraco(objeto)) {
+				inteiro tipo = ob.obter_propriedade_tipo_inteiro(evento, "tipo")
+				escolha (tipo) {
+				caso EVENTO_MOUSE_ESQUERDO_CLICAR:
+					cadeia nome = receber_nome(objeto)
+					se (nome == BOTAO_ADICIONAR_ALUNO) {
+						botao_adicionar_aluno()
+					} senao se (nome == BOTAO_CADASTRO_ALUNOS) {
+						botao_cadastro_alunos()
+					} senao se (nome == BOTAO_LISTAGEM_ALUNOS) {
+						botao_listagem_alunos()
+					} senao se (nome == BOTAO_SISTEMA_SAIR) {
+						botao_sistema_sair()
+					}
+				caso contrario:
+					pare
+				}
+			}
+		}
+	}
+	
 	funcao inteiro construir_tela_principal() {
 		inteiro tela = criar_retangulo(0, 0, 1, 1)
 		atribuir_cor(tela, COR_BACKGROUND_GRAY)
@@ -1397,29 +1802,38 @@ programa
 			atribuir_modoh(header, DIMENSIONAMENTO_PX)
 			atribuir_cor(header, COR_BACKGROUND_LIGHT_GRAY)
 			adotar(tela, header)
-				inteiro botao_menu = criar_retangulo(0, 0.5, 40, 40)
-				nomear_objeto(botao_menu, "botao_sidemenu")
-				atribuir_modow(botao_menu, DIMENSIONAMENTO_PX)
-				atribuir_modoh(botao_menu, DIMENSIONAMENTO_PX)
-				atribuir_margem_esquerda(botao_menu, 10)
-				atribuir_cor(botao_menu, COR_SECONDARY)
-				atribuir_arredondado(botao_menu, verdadeiro)
-				adotar(header, botao_menu)
-					inteiro barras_holder = criar_retangulo(0.5, 0.5, 0.6, 0.8)
-					atribuir_cor(barras_holder, COR_SECONDARY)
-					adotar(botao_menu, barras_holder)
-						inteiro barra_1 = criar_retangulo(0, 0, 0.18, 1)
-						adotar(barras_holder, barra_1)
-						inteiro barra_2 = criar_retangulo(0, 0.5, 0.18, 1)
-						adotar(barras_holder, barra_2)
-						inteiro barra_3 = criar_retangulo(0, 1, 0.18, 1)
-						adotar(barras_holder, barra_3)
-				inteiro texto = criar_caixa_texto("Cadastro de alunos", 0.5, 0.5)
+				inteiro texto = criar_caixa_texto("Sistema de cadastro", 20, 0.5)
+				atribuir_modox(texto, DIMENSIONAMENTO_PX)
 				atribuir_cor(texto, gf.COR_PRETO)
 				atribuir_tamanho_fonte(texto, 30)
 				adotar(header, texto)
-				inteiro cadastro_aluno = construir_cadastro_aluno()
-				adotar(tela, cadastro_aluno)
+				inteiro container_botoes = criar_retangulo(0.5, 0.5, 0.8, 0.2)
+				atribuir_cor(container_botoes, COR_BACKGROUND_LIGHT_GRAY)
+				adotar(header, container_botoes)
+					inteiro botao_cadastro = criar_botao("Cadastro de alunos", BOTAO_CADASTRO_ALUNOS, 0, 0.5, 0.8, 160)
+					atribuir_raio_x(botao_cadastro, 4)
+					atribuir_raio_y(botao_cadastro, 4)
+					atribuir_modow(botao_cadastro, DIMENSIONAMENTO_PX)
+					atribuir_cor(botao_cadastro, COR_SECONDARY)
+					adotar(container_botoes, botao_cadastro)
+					inteiro botao_listagem = criar_botao("Listagem de alunos", BOTAO_LISTAGEM_ALUNOS, 1, 0.5, 0.8, 160)
+					atribuir_raio_x(botao_listagem, 4)
+					atribuir_raio_y(botao_listagem, 4)
+					atribuir_modow(botao_listagem, DIMENSIONAMENTO_PX)
+					atribuir_cor(botao_listagem, COR_SECONDARY)
+					adotar(container_botoes, botao_listagem)
+				inteiro botao_sair = criar_botao("Sair", BOTAO_SISTEMA_SAIR, 1, 0.5, 0.5, 50)
+				atribuir_margem_esquerda(botao_sair, -10)
+				atribuir_raio_x(botao_sair, 4)
+				atribuir_raio_y(botao_sair, 4)
+				atribuir_modow(botao_sair, DIMENSIONAMENTO_PX)
+				atribuir_cor(botao_sair, COR_PERIGO)
+				adotar(header, botao_sair)
+		inteiro cadastro_aluno = construir_cadastro_aluno()
+		atribuir_visivel(cadastro_aluno, falso)
+		adotar(tela, cadastro_aluno)
+		inteiro listagem_aluno = construir_listagem_alunos(10, 60)
+		adotar(tela, listagem_aluno)
 		retorne tela
 	}
 	
@@ -1427,20 +1841,18 @@ programa
  	{
  		inicializar_biblioteca_ui()
 		definir_fonte("Roboto")
-		inteiro fps = criar_caixa_texto("FPS: 0", 1, 0)
-		atribuir_cor(fps, gf.COR_PRETO)
 		inserir_objeto(construir_tela_principal())
-		inserir_objeto(fps)
+		recarregar_listagem()
 		inteiro periodo = 0
 		enquanto (nao kb.tecla_pressionada(kb.TECLA_ESC))
 		{	
-			//periodo += tempo_delta
+			periodo += tempo_delta
 			//se (periodo >= segundos(1)) {
-			//	periodo = 0
-			//	definir_janela_dimensoes(ut.sorteia(400, 1920), ut.sorteia(300, 1080))
+				//periodo = 0
+				//definir_janela_dimensoes(ut.sorteia(400, 1920), ut.sorteia(300, 1080))
 			//}
-			atribuir_texto(fps, "FPS: " + qps)
 			biblioteca_ui_tick()
+			lidar_eventos()
 			
 		}
 		biblioteca_ui_finalizar()
@@ -1453,7 +1865,7 @@ programa
  * Esta seção do arquivo guarda informações do Portugol Studio.
  * Você pode apagá-la se estiver utilizando outro editor.
  * 
- * @POSICAO-CURSOR = 33732; 
+ * @POSICAO-CURSOR = 53067; 
  * @PONTOS-DE-PARADA = ;
  * @SIMBOLOS-INSPECIONADOS = ;
  * @FILTRO-ARVORE-TIPOS-DE-DADO = inteiro, real, logico, cadeia, caracter, vazio;
