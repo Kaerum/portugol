@@ -1576,28 +1576,32 @@ programa
 			cadeia idade = ""
 			cadeia telefone = ""
 			enquanto (linha != "__fim__") {
+				relatar(RELATO_DEBUG, linha + " controle " + controle)
+				linha = ar.ler_linha(handle)
 				escolha (controle) {
 					caso 0:
-						nome = ar.ler_linha(handle)
+						nome = linha
 						pare
 					caso 1:
-						idade = ar.ler_linha(handle)
+						idade = linha
 						pare
 					caso 2:
-						telefone = ar.ler_linha(handle)
+						telefone = linha
 						pare
 					caso 3:
 						adicionar_aluno(nome, idade, telefone)
-						pare
-					caso 4:
-						linha = ar.ler_linha(handle)
-						controle = 0
+						nome = ""
+						idade = ""
+						telefone = ""
+						controle = -1
 						pare
 					caso contrario:
-						controle = 0
+						controle = -1
 						pare
 				}
+				controle++
 			}
+		   ar.fechar_arquivo(handle)
 		}
 	}
 
@@ -1615,6 +1619,7 @@ programa
 			ar.escrever_linha("__continuar__", handle)
 		}
 		ar.escrever_linha("__fim__", handle)
+		ar.fechar_arquivo(handle)
 	}
 
 	funcao logico adicionar_aluno(cadeia nome, cadeia idade, cadeia telefone) {
@@ -1842,6 +1847,7 @@ programa
  		inicializar_biblioteca_ui()
 		definir_fonte("Roboto")
 		inserir_objeto(construir_tela_principal())
+		carregar_alunos()
 		recarregar_listagem()
 		inteiro periodo = 0
 		enquanto (nao kb.tecla_pressionada(kb.TECLA_ESC))
@@ -1865,7 +1871,7 @@ programa
  * Esta seção do arquivo guarda informações do Portugol Studio.
  * Você pode apagá-la se estiver utilizando outro editor.
  * 
- * @POSICAO-CURSOR = 53067; 
+ * @POSICAO-CURSOR = 52539; 
  * @PONTOS-DE-PARADA = ;
  * @SIMBOLOS-INSPECIONADOS = ;
  * @FILTRO-ARVORE-TIPOS-DE-DADO = inteiro, real, logico, cadeia, caracter, vazio;
