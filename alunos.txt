@@ -1,13 +1,6 @@
-RB
-11
-12
-__continuar__
-AD
-12
-123
-__continuar__
-JOSE
-12
-12341
-__continuar__
-__fim__
+TRO
+23
+77 7777-4444
+DATA
+23
+77777777

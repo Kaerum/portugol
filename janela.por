@@ -192,8 +192,11 @@ programa
 	inteiro quantidade_mouse_pressionado_sobre_antes = 0
 	inteiro mouse_pressionado_sobre_antes[LIMITE_MOUSE_OBJETOS]
 	// Teclado
-	
-	
+	const inteiro TECLADO_COOLDOWN = 80
+	inteiro teclado_ultimo_processamento = 0
+	const inteiro MAIOR_TECLA = 201
+	logico tecla_pressionado_antes[MAIOR_TECLA]
+	logico tecla_pressionado[MAIOR_TECLA]
 
 	// Eventos
 	const inteiro EVENTO_MOUSE_ESQUERDO_PRESSIONAR = 0
@@ -207,6 +210,7 @@ programa
 	const inteiro EVENTO_MOUSE_DIREITO_CLICAR = 8
 	const inteiro EVENTO_MOUSE_MOVER = 9
 	const inteiro EVENTO_TECLA_PRESSIONAR = 10
+	const inteiro EVENTO_TECLA_CLICAR = 11
 	const inteiro LIMITE_EVENTOS = 4096
 	const inteiro LIMITE_ARGUMENTOS = 10
 	inteiro quantidade_eventos = 0
@@ -414,8 +418,8 @@ programa
 		se (checar_objeto_fraco(pai)) {
 			para (inteiro i = 0; i < quantidade_filhos[pai]; i++) {
 				inteiro filho = filhos[pai][i]
-				ob.liberar_objeto(filho)
 				filhos[pai][i] = -1
+				ob.liberar_objeto(filho)
 			}
 			quantidade_filhos[pai] = 0
 		}
@@ -1137,9 +1141,19 @@ programa
 	}
 
 	funcao processar_teclado() {
-		se (kb.alguma_tecla_pressionada()) {
-			inteiro tecla = kb.ler_tecla()
-			criar_evento_teclado(EVENTO_TECLA_PRESSIONAR, tecla)
+		inteiro agora = ut.tempo_decorrido()
+		se (agora - teclado_ultimo_processamento > TECLADO_COOLDOWN) {
+			para (inteiro i = 0; i < MAIOR_TECLA; i++) {
+				tecla_pressionado_antes[i] = tecla_pressionado[i]
+				tecla_pressionado[i] = kb.tecla_pressionada(i)
+				se (tecla_pressionado[i]) {
+					criar_evento_teclado(EVENTO_TECLA_PRESSIONAR, i)
+				}
+				se (tecla_pressionado_antes[i] e nao tecla_pressionado[i]) {
+					criar_evento_teclado(EVENTO_TECLA_CLICAR, i)
+				}
+			}
+			teclado_ultimo_processamento = agora
 		}
 	}
 
@@ -1540,7 +1554,7 @@ programa
 		inteiro pagina = ob.obter_propriedade_tipo_inteiro(estado, "pagina")
 		inteiro maximo_alunos = ob.obter_propriedade_tipo_inteiro(estado, "alunos_por_pagina")
 		inteiro index_inicio = maximo_alunos * (pagina - 1)
-		inteiro ultima_pagina = mt.arredondar(( quantidade_alunos / maximo_alunos ) - 0.5, 1)
+		inteiro ultima_pagina = quantidade_alunos / maximo_alunos
 		se (index_inicio < 0) {
 			index_inicio = 0
 		}
@@ -1553,12 +1567,13 @@ programa
 			atribuir_visivel(botao_proximo, falso)
 		}
 		se (quantidade_alunos > 0) {
-			para (inteiro i = 0; i < quantidade_alunos e i < (index_inicio + maximo_alunos - 1); i++) {
+			para (inteiro i = 0; i < quantidade_alunos e i < (index_inicio + maximo_alunos); i++) {
 			inteiro aluno = alunos[i]
 			cadeia nome = ob.obter_propriedade_tipo_cadeia(aluno, "nome")
 			inteiro idade = ob.obter_propriedade_tipo_inteiro(aluno, "idade")
 			cadeia telefone = ob.obter_propriedade_tipo_cadeia(aluno, "telefone")
-				inteiro objeto_aluno = construir_aluno_listagem(nome, idade, telefone, i)
+			inteiro posicao = i % maximo_alunos
+				inteiro objeto_aluno = construir_aluno_listagem(nome, idade, telefone, posicao)
 				adotar(container_alunos, objeto_aluno)
 			}
 		} senao {
@@ -1575,8 +1590,7 @@ programa
 			cadeia nome = ""
 			cadeia idade = ""
 			cadeia telefone = ""
-			enquanto (linha != "__fim__") {
-				relatar(RELATO_DEBUG, linha + " controle " + controle)
+			enquanto (nao ar.fim_arquivo(handle)) {
 				linha = ar.ler_linha(handle)
 				escolha (controle) {
 					caso 0:
@@ -1587,8 +1601,6 @@ programa
 						pare
 					caso 2:
 						telefone = linha
-						pare
-					caso 3:
 						adicionar_aluno(nome, idade, telefone)
 						nome = ""
 						idade = ""
@@ -1605,6 +1617,8 @@ programa
 		}
 	}
 
+	
+
 	funcao salvar_alunos() {
 		inteiro handle = ar.abrir_arquivo(ARQUIVO, ar.MODO_ESCRITA)
 		para (inteiro i = 0; i < quantidade_alunos; i++) {
@@ -1616,9 +1630,7 @@ programa
 			ar.escrever_linha(nome, handle)
 			ar.escrever_linha(idad, handle)
 			ar.escrever_linha(telefone, handle)
-			ar.escrever_linha("__continuar__", handle)
 		}
-		ar.escrever_linha("__fim__", handle)
 		ar.fechar_arquivo(handle)
 	}
 
@@ -1678,10 +1690,16 @@ programa
 
 	funcao botao_listagem_proximo() {
 		inteiro estado = procurar_nomeado(ESTADO_LISTAGEM_ALUNOS)
+		inteiro pagina = ob.obter_propriedade_tipo_inteiro(estado, "pagina")
+		ob.atribuir_propriedade(estado, "pagina", pagina + 1)
+		recarregar_listagem()
 	}
 
 	funcao botao_listagem_anterior() {
 		inteiro estado = procurar_nomeado(ESTADO_LISTAGEM_ALUNOS)
+		inteiro pagina = ob.obter_propriedade_tipo_inteiro(estado, "pagina")
+		ob.atribuir_propriedade(estado, "pagina", pagina - 1)
+		recarregar_listagem()
 	}
 	
 	funcao inteiro construir_caixa_com_label(cadeia label, real x, real y, real h, real w) {
@@ -1698,13 +1716,14 @@ programa
 	funcao inteiro construir_aluno_listagem(cadeia nome, inteiro idade, cadeia telefone, inteiro index) {
 		cadeia idad = "??"
 		idad = tp.inteiro_para_cadeia(idade, 10)
-		inteiro container = criar_retangulo(0, index * ALTURA_CONTAINER_ALUNO, ALTURA_CONTAINER_ALUNO, 1)
+		inteiro container = criar_retangulo(0.5, index * ALTURA_CONTAINER_ALUNO, ALTURA_CONTAINER_ALUNO, 1)
+		atribuir_modoh(container, DIMENSIONAMENTO_PX)
 		atribuir_modoy(container, POSICIONAMENTO_PX)
 			inteiro texto_nome = criar_caixa_texto(nome, 0, 0)
 			adotar(container, texto_nome)
-			inteiro texto_idade = criar_caixa_texto(idad, 0.33, 0)
+			inteiro texto_idade = criar_caixa_texto(idad, 0.5, 0)
 			adotar(container, texto_idade)
-			inteiro texto_telefone = criar_caixa_texto(telefone, 0.66, 0)
+			inteiro texto_telefone = criar_caixa_texto(telefone, 1, 0)
 			adotar(container, texto_telefone)
 		retorne container
 	}
@@ -1750,12 +1769,12 @@ programa
 		inteiro listagem = construir_caixa_com_label("Listagem de alunos", 0.5, 0.5, tamanho, 0.5)
 		atribuir_modoh(listagem, DIMENSIONAMENTO_PX)
 		nomear_objeto(listagem, TELA_LISTAGEM_ALUNOS)
-			inteiro container_alunos = criar_retangulo(100, 100, alunos_por_pagina * altura_por_aluno, 1)
+			inteiro container_alunos = criar_retangulo(0.5, 0, alunos_por_pagina * altura_por_aluno, 0.8)
 			nomear_objeto(container_alunos, CONTAINER_LISTAGEM_ALUNOS)
-			atribuir_margem_topo(container_alunos, 100)
+			atribuir_margem_topo(container_alunos, 60)
 			atribuir_modoh(container_alunos, DIMENSIONAMENTO_PX)
 			adotar(listagem, container_alunos)
-			inteiro container_footer = criar_retangulo(0.5, 1, 0.1, 0.2)
+			inteiro container_footer = criar_retangulo(0.5, 1, 0.05, 0.8)
 				atribuir_margem_topo(container_footer, -5)
 				adotar(listagem, container_footer)
 					inteiro botao_passar_pagina = criar_botao("Próxima", BOTAO_LISTAGEM_PASSAR_PAGINA, 1, 0.5, 30, 80)
@@ -1837,7 +1856,7 @@ programa
 		inteiro cadastro_aluno = construir_cadastro_aluno()
 		atribuir_visivel(cadastro_aluno, falso)
 		adotar(tela, cadastro_aluno)
-		inteiro listagem_aluno = construir_listagem_alunos(10, 60)
+		inteiro listagem_aluno = construir_listagem_alunos(15, ALTURA_CONTAINER_ALUNO)
 		adotar(tela, listagem_aluno)
 		retorne tela
 	}
@@ -1871,7 +1890,7 @@ programa
  * Esta seção do arquivo guarda informações do Portugol Studio.
  * Você pode apagá-la se estiver utilizando outro editor.
  * 
- * @POSICAO-CURSOR = 52539; 
+ * @POSICAO-CURSOR = 5355; 
  * @PONTOS-DE-PARADA = ;
  * @SIMBOLOS-INSPECIONADOS = ;
  * @FILTRO-ARVORE-TIPOS-DE-DADO = inteiro, real, logico, cadeia, caracter, vazio;
